@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import type { Role } from '~/stores/auth'
 import { useApi } from '~/composables/useApi'
 
 useHead({ title: 'Iniciar sesión — MBP Testing' })
@@ -7,7 +8,7 @@ useHead({ title: 'Iniciar sesión — MBP Testing' })
 interface AuthResponse {
   accessToken: string
   expiresInMs: number
-  user: { id: string; email: string; fullName: string; role: 'ROLE_USER' }
+  user: { id: string; email: string; fullName: string; roles: Role[] }
 }
 
 const auth = useAuthStore()

@@ -1,4 +1,5 @@
 import { useAuthStore } from '~/stores/auth'
+import type { Role } from '~/stores/auth'
 
 const PUBLIC_PATHS = ['/login', '/bienvenida']
 
@@ -13,4 +14,10 @@ export default defineNuxtRouteMiddleware((to) => {
 
   if (isPublic(to.path)) return
   if (!auth.isAuthenticated) return navigateTo('/login')
+
+  const required = to.meta?.requiresRole as Role | Role[] | undefined
+  if (!required) return
+  const requiredList = Array.isArray(required) ? required : [required]
+  const ok = requiredList.some(r => auth.roles.includes(r))
+  if (!ok) return navigateTo('/')
 })

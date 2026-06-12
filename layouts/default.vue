@@ -19,6 +19,15 @@ const auth = useAuthStore()
         <v-btn variant="text" color="white" to="/estoy-dentro" prepend-icon="mdi-shield-check">
           Estoy dentro
         </v-btn>
+        <v-btn
+          v-if="auth.isAdmin"
+          variant="text"
+          color="white"
+          to="/admin/companias"
+          prepend-icon="mdi-domain"
+        >
+          Administración
+        </v-btn>
         <v-btn variant="text" color="white" @click="auth.logout()" prepend-icon="mdi-logout">
           Salir
         </v-btn>

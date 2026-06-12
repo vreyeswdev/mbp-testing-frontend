@@ -50,8 +50,8 @@ onMounted(async () => {
               <v-list-item-subtitle>{{ auth.email }}</v-list-item-subtitle>
             </v-list-item>
             <v-list-item prepend-icon="mdi-shield-account">
-              <v-list-item-title>Rol</v-list-item-title>
-              <v-list-item-subtitle>{{ auth.role }}</v-list-item-subtitle>
+              <v-list-item-title>Roles</v-list-item-title>
+              <v-list-item-subtitle>{{ auth.roles.join(', ') || '—' }}</v-list-item-subtitle>
             </v-list-item>
           </v-list>
 

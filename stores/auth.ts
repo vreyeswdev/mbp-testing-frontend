@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 
-export type Role = 'ROLE_USER'
+export type Role = 'ROLE_CLIENTE' | 'ROLE_ESPECIALISTA' | 'ROLE_ADMIN'
 
 export interface AuthUser {
   id: string | null
   email: string | null
   fullName: string | null
-  role: Role | null
+  roles: Role[]
 }
 
 export interface AuthState extends AuthUser {
@@ -19,7 +19,7 @@ export interface AuthSessionPayload {
     id: string
     email: string
     fullName: string
-    role: Role
+    roles: Role[]
   }
 }
 
@@ -29,7 +29,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 
 function metaCookie() {
   return useCookie<AuthUser>(META_COOKIE, {
-    default: () => ({ id: null, email: null, fullName: null, role: null }),
+    default: () => ({ id: null, email: null, fullName: null, roles: [] }),
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
     secure: !import.meta.dev
@@ -50,25 +50,29 @@ export const useAuthStore = defineStore('auth', {
     id: null,
     email: null,
     fullName: null,
-    role: null,
+    roles: [],
     accessToken: null
   }),
   getters: {
     isAuthenticated: (s) => !!s.accessToken,
-    bearerHeader: (s) => (s.accessToken ? `Bearer ${s.accessToken}` : null)
+    bearerHeader: (s) => (s.accessToken ? `Bearer ${s.accessToken}` : null),
+    isAdmin: (s) => s.roles.includes('ROLE_ADMIN'),
+    isEspecialista: (s) => s.roles.includes('ROLE_ESPECIALISTA'),
+    isCliente: (s) => s.roles.includes('ROLE_CLIENTE'),
+    hasRole: (s) => (role: Role) => s.roles.includes(role)
   },
   actions: {
     setSession(payload: AuthSessionPayload) {
       this.id = payload.user.id
       this.email = payload.user.email
       this.fullName = payload.user.fullName
-      this.role = payload.user.role
+      this.roles = [...(payload.user.roles ?? [])]
       this.accessToken = payload.accessToken
       metaCookie().value = {
         id: payload.user.id,
         email: payload.user.email,
         fullName: payload.user.fullName,
-        role: payload.user.role
+        roles: this.roles
       }
       tokenCookie().value = payload.accessToken
     },
@@ -78,16 +82,16 @@ export const useAuthStore = defineStore('auth', {
       this.id = meta?.id ?? null
       this.email = meta?.email ?? null
       this.fullName = meta?.fullName ?? null
-      this.role = meta?.role ?? null
+      this.roles = Array.isArray(meta?.roles) ? [...meta.roles] : []
       this.accessToken = token ?? null
     },
     clearLocal() {
       this.id = null
       this.email = null
       this.fullName = null
-      this.role = null
+      this.roles = []
       this.accessToken = null
-      metaCookie().value = { id: null, email: null, fullName: null, role: null }
+      metaCookie().value = { id: null, email: null, fullName: null, roles: [] }
       tokenCookie().value = null
     },
     logout() {
