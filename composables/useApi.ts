@@ -18,7 +18,7 @@ export const useApi = () => {
         headers
       })
     } catch (err: any) {
-      const isAuthPath = path.startsWith('/auth/login') || path.startsWith('/auth/register')
+      const isAuthPath = path.startsWith('/auth/login') || path.startsWith('/public/')
       if (err?.statusCode === 401 && !isAuthPath) {
         auth.clearLocal()
         if (import.meta.client) navigateTo('/login')

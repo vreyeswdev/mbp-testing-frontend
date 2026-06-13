@@ -2,15 +2,19 @@
 export default defineNuxtConfig({
   app: {
     head: {
-      title: 'MBP Testing',
+      title: 'MBP Testing — QA & Security Engineering',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: '#0B0F14' }
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap' }
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap'
+        }
       ]
     }
   },
@@ -26,7 +30,8 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/login': { ssr: false },
-    '/estoy-dentro': { ssr: false }
+    '/estoy-dentro': { ssr: false },
+    '/solicitar': { ssr: false }
   },
   vite: {
     vue: {
@@ -36,7 +41,10 @@ export default defineNuxtConfig({
       hmr: { clientPort: Number(process.env.FRONTEND_PORT) || 3000 }
     }
   },
-  css: ['@mdi/font/css/materialdesignicons.css'],
+  css: [
+    '@mdi/font/css/materialdesignicons.css',
+    '~/assets/css/cyber.css'
+  ],
   modules: ['@pinia/nuxt'],
   build: { transpile: ['vuetify'] },
   devtools: { enabled: true },

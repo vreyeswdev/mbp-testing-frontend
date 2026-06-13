@@ -27,14 +27,15 @@ onMounted(async () => {
   <v-container class="py-12">
     <v-row justify="center">
       <v-col cols="12" md="8" lg="6">
-        <v-card class="pa-6" elevation="2">
+        <v-card class="cyber-card cyber-card-glow pa-6">
           <div class="text-center mb-4">
-            <v-avatar color="success" size="72" class="mb-3">
-              <v-icon size="40" color="white">mdi-shield-check</v-icon>
+            <v-avatar color="success" variant="tonal" size="72" class="mb-3">
+              <v-icon size="40" color="success">mdi-shield-check</v-icon>
             </v-avatar>
-            <h1 class="text-h4 font-weight-medium">¡Estás dentro!</h1>
-            <p class="text-body-1 text-medium-emphasis mt-2">
-              Esta página solo es visible para usuarios autenticados.
+            <span class="cyber-subtitle">// session active</span>
+            <h1 class="text-h4 cyber-title mt-1">Estás dentro</h1>
+            <p class="text-body-2 text-medium-emphasis mt-2">
+              Acceso autorizado al portal QA.
             </p>
           </div>
 

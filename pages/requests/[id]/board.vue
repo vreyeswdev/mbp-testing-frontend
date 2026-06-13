@@ -42,10 +42,10 @@ interface ModuleDto {
 }
 
 const COLUMNS: Array<{ key: TestCardDto['status']; label: string; color: string; icon: string }> = [
-  { key: 'BACKLOG',     label: 'Backlog',     color: 'grey',   icon: 'mdi-tray' },
-  { key: 'IN_PROGRESS', label: 'En marcha',   color: 'amber',  icon: 'mdi-play' },
-  { key: 'ON_HOLD',     label: 'En pausa',    color: 'orange', icon: 'mdi-pause' },
-  { key: 'DONE',        label: 'Finalizado',  color: 'success', icon: 'mdi-check' }
+  { key: 'BACKLOG',     label: 'backlog',     color: 'secondary', icon: 'mdi-tray-full' },
+  { key: 'IN_PROGRESS', label: 'in_progress', color: 'primary',   icon: 'mdi-play-circle-outline' },
+  { key: 'ON_HOLD',     label: 'on_hold',     color: 'warning',   icon: 'mdi-pause-circle-outline' },
+  { key: 'DONE',        label: 'done',        color: 'success',   icon: 'mdi-check-circle-outline' }
 ]
 
 const route = useRoute()
@@ -221,10 +221,13 @@ onMounted(load)
       Volver al detalle
     </v-btn>
 
-    <h1 class="text-h5 font-weight-medium mb-4">
-      Tablero
-      <span v-if="request" class="text-body-2 text-medium-emphasis">· {{ request.title }}</span>
-    </h1>
+    <div class="mb-5">
+      <span class="cyber-subtitle">// kanban</span>
+      <h1 class="text-h4 cyber-title mt-1">
+        Tablero
+        <span v-if="request" class="text-body-2 text-medium-emphasis cyber-mono ms-2">{{ request.title }}</span>
+      </h1>
+    </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
       {{ error }}
@@ -234,12 +237,14 @@ onMounted(load)
 
     <v-row v-else>
       <v-col v-for="col in COLUMNS" :key="col.key" cols="12" md="3">
-        <v-card class="h-100" variant="tonal" :color="col.color">
-          <v-card-title class="d-flex align-center">
-            <v-icon class="me-2">{{ col.icon }}</v-icon>
-            {{ col.label }}
+        <v-card class="h-100 cyber-card">
+          <v-card-title class="d-flex align-center cyber-mono">
+            <v-icon class="me-2" :color="col.color">{{ col.icon }}</v-icon>
+            <span class="text-body-2">{{ col.label }}</span>
             <v-spacer />
-            <v-chip size="x-small" variant="flat">{{ grouped[col.key].length }}</v-chip>
+            <v-chip size="x-small" variant="tonal" :color="col.color" class="cyber-chip">
+              {{ grouped[col.key].length }}
+            </v-chip>
           </v-card-title>
           <v-card-actions v-if="canEdit">
             <v-btn size="small" variant="text" prepend-icon="mdi-plus" @click="openNew(col.key)">
@@ -252,7 +257,8 @@ onMounted(load)
               v-for="card in grouped[col.key]"
               :key="card.id"
               class="mb-2"
-              variant="flat"
+              variant="outlined"
+              :color="col.color"
             >
               <v-card-title class="text-body-1">{{ card.title }}</v-card-title>
               <v-card-subtitle v-if="card.featureName">{{ card.featureName }}</v-card-subtitle>

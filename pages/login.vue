@@ -54,13 +54,16 @@ async function onSubmit() {
   <v-container class="py-12">
     <v-row justify="center">
       <v-col cols="12" sm="8" md="5" lg="4">
-        <v-card class="pa-6" elevation="3">
+        <v-card class="cyber-card pa-6">
           <div class="text-center mb-6">
-            <v-avatar color="primary" size="64" class="mb-3">
-              <v-icon size="36" color="white">mdi-lock</v-icon>
+            <v-avatar color="primary" size="64" class="mb-3" variant="tonal">
+              <v-icon size="36" color="primary">mdi-shield-key-outline</v-icon>
             </v-avatar>
-            <h1 class="text-h5 font-weight-medium">Iniciar sesión</h1>
-            <p class="text-body-2 text-medium-emphasis">Accede con tu cuenta</p>
+            <span class="cyber-subtitle">// secure login //</span>
+            <h1 class="text-h5 cyber-title mt-2">Acceder al portal</h1>
+            <p class="text-body-2 text-medium-emphasis mt-1">
+              Solo cuentas habilitadas por el administrador
+            </p>
           </div>
 
           <v-alert v-if="error" type="error" variant="tonal" class="mb-4" density="compact">
@@ -101,10 +104,14 @@ async function onSubmit() {
             </v-btn>
           </v-form>
 
-          <v-divider class="my-5" />
+          <div class="cyber-divider" />
 
           <p class="text-caption text-center text-medium-emphasis">
-            Credenciales de prueba: <code>user@mbp.test</code> / <code>User1234</code>
+            ¿Aún no tienes cuenta?
+            <NuxtLink to="/solicitar" class="cyber-link">Solicita el servicio</NuxtLink>
+          </p>
+          <p class="text-caption text-center text-medium-emphasis mt-2 cyber-mono">
+            Demo: user@mbp.test / User1234
           </p>
         </v-card>
       </v-col>

@@ -105,7 +105,10 @@ onMounted(async () => {
 
 <template>
   <v-container class="py-8" fluid>
-    <h1 class="text-h5 font-weight-medium mb-4">Dashboard</h1>
+    <div class="mb-6">
+      <span class="cyber-subtitle">// telemetry</span>
+      <h1 class="text-h4 cyber-title mt-1">Dashboard</h1>
+    </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
       {{ error }}
@@ -115,7 +118,7 @@ onMounted(async () => {
 
     <template v-else>
       <section v-if="global" class="mb-8">
-        <h2 class="text-h6 mb-3">Global</h2>
+        <h2 class="cyber-title text-h6 mb-3">// global</h2>
         <v-row>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
@@ -177,7 +180,7 @@ onMounted(async () => {
       </section>
 
       <section v-if="specialist" class="mb-8">
-        <h2 class="text-h6 mb-3">Mis métricas</h2>
+        <h2 class="cyber-title text-h6 mb-3">// mis métricas</h2>
         <v-row>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
@@ -237,10 +240,10 @@ onMounted(async () => {
       </section>
 
       <section v-if="companies.length">
-        <h2 class="text-h6 mb-3">Por compañía</h2>
+        <h2 class="cyber-title text-h6 mb-3">// por compañía</h2>
         <v-row>
           <v-col v-for="c in companies" :key="c.companiaId" cols="12" md="6">
-            <v-card>
+            <v-card class="cyber-card">
               <v-card-title>{{ c.companiaNombre }}</v-card-title>
               <v-card-text>
                 <v-row dense>

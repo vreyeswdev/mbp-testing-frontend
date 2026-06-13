@@ -120,7 +120,10 @@ const headers = [
 <template>
   <v-container class="py-8">
     <div class="d-flex align-center mb-4">
-      <h1 class="text-h5 font-weight-medium">Solicitudes de QA</h1>
+      <div>
+        <span class="cyber-subtitle">// engagements</span>
+        <h1 class="text-h4 cyber-title mt-1">Solicitudes de QA</h1>
+      </div>
       <v-spacer />
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openNew">
         Nueva solicitud

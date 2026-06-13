@@ -14,13 +14,13 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <v-card variant="tonal" :color="color" class="h-100">
+  <v-card class="cyber-card h-100">
     <v-card-text>
       <div class="d-flex align-center">
-        <v-icon size="32" class="me-3">{{ icon }}</v-icon>
+        <v-icon size="32" :color="color" class="me-3">{{ icon }}</v-icon>
         <div>
-          <div class="text-overline">{{ title }}</div>
-          <div class="text-h4 font-weight-medium">{{ value }}</div>
+          <div class="cyber-subtitle">{{ title }}</div>
+          <div class="text-h4 cyber-mono mt-1">{{ value }}</div>
           <div v-if="hint" class="text-caption text-medium-emphasis">{{ hint }}</div>
         </div>
       </div>
