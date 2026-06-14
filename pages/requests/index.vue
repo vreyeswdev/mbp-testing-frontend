@@ -2,9 +2,10 @@
 import { useApi } from '~/composables/useApi'
 import { useCatalog } from '~/composables/useCatalog'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Solicitudes — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('requests.title')} — ${t('common.appName')}` })
 
 interface TestRequestDto {
   id: string
@@ -14,6 +15,7 @@ interface TestRequestDto {
   environmentCode: string | null
   title: string
   status: string
+  statusLabel: string
   assignedSpecialistEmail: string | null
   requestedByEmail: string
   createdAt: string
@@ -56,7 +58,7 @@ async function load() {
     items.value = list
     projects.value = ps
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -86,7 +88,7 @@ async function save() {
     dialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear'
+    error.value = e?.data?.message || t('common.errorCreate')
   } finally {
     saving.value = false
   }
@@ -107,26 +109,26 @@ function statusColor(s: string) {
 
 onMounted(load)
 
-const headers = [
-  { title: 'Título', key: 'title' },
-  { title: 'Project', key: 'projectName' },
-  { title: 'Test type', key: 'testTypeCode' },
-  { title: 'Estado', key: 'status' },
-  { title: 'Especialista', key: 'assignedSpecialistEmail' },
+const headers = computed(() => [
+  { title: t('requests.headers.title'), key: 'title' },
+  { title: t('requests.headers.project'), key: 'projectName' },
+  { title: t('requests.headers.testType'), key: 'testTypeCode' },
+  { title: t('requests.headers.status'), key: 'status' },
+  { title: t('requests.headers.specialist'), key: 'assignedSpecialistEmail' },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
-]
+])
 </script>
 
 <template>
   <v-container class="py-8">
-    <div class="d-flex align-center mb-4">
+    <div class="d-flex align-center mb-6">
       <div>
-        <span class="cyber-subtitle">// engagements</span>
-        <h1 class="text-h4 cyber-title mt-1">Solicitudes de QA</h1>
+        <div class="text-overline text-medium-emphasis">{{ t('requests.overline') }}</div>
+        <h1 class="text-h4 font-weight-bold">{{ t('requests.title') }}</h1>
       </div>
       <v-spacer />
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openNew">
-        Nueva solicitud
+        {{ t('requests.new') }}
       </v-btn>
     </div>
 
@@ -134,7 +136,7 @@ const headers = [
       {{ error }}
     </v-alert>
 
-    <v-card>
+    <v-card variant="outlined">
       <v-data-table
         :headers="headers"
         :items="items"
@@ -142,13 +144,13 @@ const headers = [
         items-per-page="25"
         density="comfortable"
       >
-        <template #item.status="{ value }">
-          <v-chip :color="statusColor(value)" size="small" variant="tonal">
-            {{ value.replace(/_/g, ' ') }}
+        <template #item.status="{ item }">
+          <v-chip :color="statusColor(item.status)" size="small" variant="tonal">
+            {{ item.statusLabel || item.status }}
           </v-chip>
         </template>
         <template #item.assignedSpecialistEmail="{ value }">
-          {{ value || '—' }}
+          {{ value || t('common.emptyDash') }}
         </template>
         <template #item.actions="{ item }">
           <v-btn size="small" variant="text" :to="`/requests/${item.id}`" icon="mdi-arrow-right" />
@@ -158,37 +160,37 @@ const headers = [
 
     <v-dialog v-model="dialog" max-width="640">
       <v-card>
-        <v-card-title>Nueva solicitud</v-card-title>
+        <v-card-title>{{ t('requests.dialog.newTitle') }}</v-card-title>
         <v-card-text>
           <v-select
             v-model="form.projectId"
             :items="projects"
             item-title="name"
             item-value="id"
-            label="Project"
+            :label="t('requests.dialog.projectLabel')"
           />
           <v-select
             v-model="form.testTypeId"
             :items="catalog.state.value.testTypes"
             item-title="name"
             item-value="id"
-            label="Tipo de prueba"
+            :label="t('requests.dialog.testTypeLabel')"
           />
           <v-select
             v-model="form.environmentId"
             :items="catalog.state.value.environments"
             item-title="name"
             item-value="id"
-            label="Ambiente (opcional)"
+            :label="t('requests.dialog.environmentLabel')"
             clearable
           />
-          <v-text-field v-model="form.title" label="Título" />
-          <v-textarea v-model="form.description" label="Descripción" rows="3" />
+          <v-text-field v-model="form.title" :label="t('requests.dialog.titleLabel')" />
+          <v-textarea v-model="form.description" :label="t('requests.dialog.descriptionLabel')" rows="3" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :loading="saving" @click="save">Crear</v-btn>
+          <v-btn variant="text" @click="dialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :loading="saving" @click="save">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

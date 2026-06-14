@@ -3,9 +3,10 @@ import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import { useCatalog } from '~/composables/useCatalog'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Tablero — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('board.title')} — ${t('common.appName')}` })
 
 interface TestCardDto {
   id: string
@@ -15,6 +16,7 @@ interface TestCardDto {
   title: string
   description: string | null
   status: 'BACKLOG' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
+  statusLabel: string
   position: number
   startedAt: string | null
   completedAt: string | null
@@ -41,12 +43,12 @@ interface ModuleDto {
   projectId: string
 }
 
-const COLUMNS: Array<{ key: TestCardDto['status']; label: string; color: string; icon: string }> = [
-  { key: 'BACKLOG',     label: 'backlog',     color: 'secondary', icon: 'mdi-tray-full' },
-  { key: 'IN_PROGRESS', label: 'in_progress', color: 'primary',   icon: 'mdi-play-circle-outline' },
-  { key: 'ON_HOLD',     label: 'on_hold',     color: 'warning',   icon: 'mdi-pause-circle-outline' },
-  { key: 'DONE',        label: 'done',        color: 'success',   icon: 'mdi-check-circle-outline' }
-]
+const COLUMNS = computed<Array<{ key: TestCardDto['status']; label: string; color: string; icon: string }>>(() => [
+  { key: 'BACKLOG',     label: t('board.columns.BACKLOG'),     color: 'secondary', icon: 'mdi-tray-full' },
+  { key: 'IN_PROGRESS', label: t('board.columns.IN_PROGRESS'), color: 'primary',   icon: 'mdi-play-circle-outline' },
+  { key: 'ON_HOLD',     label: t('board.columns.ON_HOLD'),     color: 'warning',   icon: 'mdi-pause-circle-outline' },
+  { key: 'DONE',        label: t('board.columns.DONE'),        color: 'success',   icon: 'mdi-check-circle-outline' }
+])
 
 const route = useRoute()
 const api = useApi()
@@ -72,7 +74,9 @@ interface FixDto {
   id: string
   title: string
   severity: string
+  severityLabel: string
   status: string
+  statusLabel: string
   createdAt: string
 }
 
@@ -95,7 +99,7 @@ async function load() {
       features.value = lists.flat()
     }
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar el tablero'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -137,7 +141,7 @@ async function save() {
     dialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear la card'
+    error.value = e?.data?.message || t('common.errorCreate')
   }
 }
 
@@ -147,7 +151,7 @@ async function move(card: TestCardDto, status: TestCardDto['status']) {
     await api.post(`/cards/${card.id}/move`, { status, position: lastPos })
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible mover la card'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -156,7 +160,7 @@ async function remove(card: TestCardDto) {
     await api.del(`/cards/${card.id}`)
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible eliminar'
+    error.value = e?.data?.message || t('common.errorDelete')
   }
 }
 
@@ -167,7 +171,7 @@ async function openFixes(card: TestCardDto) {
     cardFixes.value = await api.get<FixDto[]>(`/test-cards/${card.id}/fixes`)
     fixesDialog.value = true
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar los fixes'
+    error.value = e?.data?.message || t('common.errorLoad')
   }
 }
 
@@ -183,7 +187,7 @@ async function createFix() {
     cardFixes.value = await api.get<FixDto[]>(`/test-cards/${fixesCard.value.id}/fixes`)
     newFix.value = { title: '', description: '', severity: 'MINOR' }
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear el fix'
+    error.value = e?.data?.message || t('common.errorCreate')
   }
 }
 
@@ -197,14 +201,16 @@ function fixStatusColor(s: string) {
 }
 
 function nextStatus(s: TestCardDto['status']): TestCardDto['status'] | null {
-  const i = COLUMNS.findIndex(c => c.key === s)
-  const next = i >= 0 && i < COLUMNS.length - 1 ? COLUMNS[i + 1] : null
+  const cols = COLUMNS.value
+  const i = cols.findIndex(c => c.key === s)
+  const next = i >= 0 && i < cols.length - 1 ? cols[i + 1] : null
   return next ? next.key : null
 }
 
 function prevStatus(s: TestCardDto['status']): TestCardDto['status'] | null {
-  const i = COLUMNS.findIndex(c => c.key === s)
-  const prev = i > 0 ? COLUMNS[i - 1] : null
+  const cols = COLUMNS.value
+  const i = cols.findIndex(c => c.key === s)
+  const prev = i > 0 ? cols[i - 1] : null
   return prev ? prev.key : null
 }
 
@@ -218,14 +224,14 @@ onMounted(load)
 <template>
   <v-container class="py-6" fluid>
     <v-btn variant="text" prepend-icon="mdi-arrow-left" :to="`/requests/${id}`" class="mb-3">
-      Volver al detalle
+      {{ t('board.back') }}
     </v-btn>
 
     <div class="mb-5">
-      <span class="cyber-subtitle">// kanban</span>
-      <h1 class="text-h4 cyber-title mt-1">
-        Tablero
-        <span v-if="request" class="text-body-2 text-medium-emphasis cyber-mono ms-2">{{ request.title }}</span>
+      <div class="text-overline text-medium-emphasis">{{ t('board.overline') }}</div>
+      <h1 class="text-h4 font-weight-bold">
+        {{ t('board.title') }}
+        <span v-if="request" class="text-body-1 text-medium-emphasis ms-2">· {{ request.title }}</span>
       </h1>
     </div>
 
@@ -237,18 +243,18 @@ onMounted(load)
 
     <v-row v-else>
       <v-col v-for="col in COLUMNS" :key="col.key" cols="12" md="3">
-        <v-card class="h-100 cyber-card">
-          <v-card-title class="d-flex align-center cyber-mono">
+        <v-card variant="outlined" class="h-100">
+          <v-card-title class="d-flex align-center">
             <v-icon class="me-2" :color="col.color">{{ col.icon }}</v-icon>
-            <span class="text-body-2">{{ col.label }}</span>
+            <span class="text-body-2 font-weight-medium">{{ col.label }}</span>
             <v-spacer />
-            <v-chip size="x-small" variant="tonal" :color="col.color" class="cyber-chip">
+            <v-chip size="x-small" variant="tonal" :color="col.color">
               {{ grouped[col.key].length }}
             </v-chip>
           </v-card-title>
           <v-card-actions v-if="canEdit">
             <v-btn size="small" variant="text" prepend-icon="mdi-plus" @click="openNew(col.key)">
-              Agregar
+              {{ t('board.addCard') }}
             </v-btn>
           </v-card-actions>
           <v-divider />
@@ -266,8 +272,8 @@ onMounted(load)
                 <span class="text-body-2">{{ card.description }}</span>
               </v-card-text>
               <v-card-text v-if="card.startedAt || card.completedAt" class="py-1 text-caption text-medium-emphasis">
-                <div v-if="card.startedAt">Inició: {{ fmt(card.startedAt) }}</div>
-                <div v-if="card.completedAt">Finalizó: {{ fmt(card.completedAt) }}</div>
+                <div v-if="card.startedAt">{{ t('board.card.started', { value: fmt(card.startedAt) }) }}</div>
+                <div v-if="card.completedAt">{{ t('board.card.completed', { value: fmt(card.completedAt) }) }}</div>
               </v-card-text>
               <v-card-actions class="pa-2">
                 <v-btn
@@ -276,7 +282,7 @@ onMounted(load)
                   prepend-icon="mdi-bug"
                   @click="openFixes(card)"
                 >
-                  Fixes
+                  {{ t('board.card.fixes') }}
                 </v-btn>
                 <v-spacer />
                 <template v-if="canEdit">
@@ -299,7 +305,7 @@ onMounted(load)
               </v-card-actions>
             </v-card>
             <div v-if="grouped[col.key].length === 0" class="text-caption text-medium-emphasis text-center pa-3">
-              Sin cards
+              {{ t('board.noCards') }}
             </div>
           </v-card-text>
         </v-card>
@@ -308,37 +314,37 @@ onMounted(load)
 
     <v-dialog v-model="dialog" max-width="560">
       <v-card>
-        <v-card-title>Nueva card</v-card-title>
+        <v-card-title>{{ t('board.newCard') }}</v-card-title>
         <v-card-text>
           <v-select
             v-model="form.featureId"
             :items="features"
             item-title="name"
             item-value="id"
-            label="Feature (opcional)"
+            :label="t('board.card.feature')"
             clearable
           />
-          <v-text-field v-model="form.title" label="Título" />
-          <v-textarea v-model="form.description" label="Descripción" rows="2" />
+          <v-text-field v-model="form.title" :label="t('common.title')" />
+          <v-textarea v-model="form.description" :label="t('common.description')" rows="2" />
           <v-select
             v-model="form.status"
             :items="catalog.state.value.kanbanStatuses"
             item-title="label"
             item-value="code"
-            label="Columna inicial"
+            :label="t('board.card.initialColumn')"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :disabled="!form.title" @click="save">Crear</v-btn>
+          <v-btn variant="text" @click="dialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :disabled="!form.title" @click="save">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="fixesDialog" max-width="640">
       <v-card v-if="fixesCard">
-        <v-card-title>Fixes — {{ fixesCard.title }}</v-card-title>
+        <v-card-title>{{ t('board.card.fixes') }} — {{ fixesCard.title }}</v-card-title>
         <v-list density="comfortable" max-height="320" class="overflow-y-auto">
           <v-list-item
             v-for="fx in cardFixes"
@@ -351,41 +357,41 @@ onMounted(load)
             <v-list-item-title>{{ fx.title }}</v-list-item-title>
             <v-list-item-subtitle>
               <v-chip :color="fixStatusColor(fx.status)" size="x-small" variant="tonal" class="me-1">
-                {{ fx.status }}
+                {{ fx.statusLabel || fx.status }}
               </v-chip>
-              <span class="text-caption">{{ fx.severity }}</span>
+              <span class="text-caption">{{ fx.severityLabel || fx.severity }}</span>
             </v-list-item-subtitle>
           </v-list-item>
           <v-list-item v-if="cardFixes.length === 0">
             <v-list-item-title class="text-caption text-medium-emphasis text-center">
-              Sin fixes en esta card.
+              {{ t('board.card.noFixes') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
         <v-divider v-if="canEdit" />
         <v-card-text v-if="canEdit">
-          <div class="text-overline mb-2">Nuevo fix</div>
-          <v-text-field v-model="newFix.title" label="Título" density="compact" />
-          <v-textarea v-model="newFix.description" label="Descripción" rows="2" density="compact" />
+          <div class="text-overline mb-2">{{ t('board.card.newFix') }}</div>
+          <v-text-field v-model="newFix.title" :label="t('common.title')" density="compact" />
+          <v-textarea v-model="newFix.description" :label="t('common.description')" rows="2" density="compact" />
           <v-select
             v-model="newFix.severity"
             :items="catalog.state.value.severities"
             item-title="label"
             item-value="code"
-            label="Severidad"
+            :label="t('common.severity')"
             density="compact"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="fixesDialog = false">Cerrar</v-btn>
+          <v-btn variant="text" @click="fixesDialog = false">{{ t('common.close') }}</v-btn>
           <v-btn
             v-if="canEdit"
             color="primary"
             :disabled="!newFix.title.trim()"
             @click="createFix"
           >
-            Reportar fix
+            {{ t('board.card.reportFix') }}
           </v-btn>
         </v-card-actions>
       </v-card>

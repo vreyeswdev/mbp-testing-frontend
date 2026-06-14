@@ -9,18 +9,20 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   hint: '',
   color: 'primary',
-  icon: 'mdi-chart-box'
+  icon: 'mdi-chart-box-outline'
 })
 </script>
 
 <template>
-  <v-card class="cyber-card h-100">
+  <v-card variant="outlined" class="h-100">
     <v-card-text>
       <div class="d-flex align-center">
-        <v-icon size="32" :color="color" class="me-3">{{ icon }}</v-icon>
+        <v-avatar :color="color" variant="tonal" rounded="md" size="44" class="me-3">
+          <v-icon size="24">{{ icon }}</v-icon>
+        </v-avatar>
         <div>
-          <div class="cyber-subtitle">{{ title }}</div>
-          <div class="text-h4 cyber-mono mt-1">{{ value }}</div>
+          <div class="text-caption text-medium-emphasis">{{ title }}</div>
+          <div class="text-h5 font-weight-bold">{{ value }}</div>
           <div v-if="hint" class="text-caption text-medium-emphasis">{{ hint }}</div>
         </div>
       </div>

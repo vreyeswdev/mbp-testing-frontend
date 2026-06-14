@@ -6,7 +6,7 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#0B0F14' }
+        { name: 'theme-color', content: '#1E3A8A' }
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -43,9 +43,17 @@ export default defineNuxtConfig({
   },
   css: [
     '@mdi/font/css/materialdesignicons.css',
-    '~/assets/css/cyber.css'
+    '~/assets/css/app.css'
   ],
-  modules: ['@pinia/nuxt'],
+  modules: ['@pinia/nuxt', '@nuxtjs/i18n'],
+  i18n: {
+    strategy: 'no_prefix',
+    defaultLocale: 'es',
+    locales: [
+      { code: 'es', name: 'Español', file: 'es.json' },
+      { code: 'en', name: 'English', file: 'en.json' }
+    ]
+  },
   build: { transpile: ['vuetify'] },
   devtools: { enabled: true },
   compatibilityDate: '2025-07-15'

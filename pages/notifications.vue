@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useNotifications } from '~/composables/useNotifications'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Notificaciones — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('notifications.title')} — ${t('common.appName')}` })
 
 const notif = useNotifications()
 
@@ -16,8 +17,11 @@ async function onClick(id: string) {
 
 <template>
   <v-container class="py-8">
-    <div class="d-flex align-center mb-4">
-      <h1 class="text-h5 font-weight-medium">Notificaciones</h1>
+    <div class="d-flex align-center mb-6">
+      <div>
+        <div class="text-overline text-medium-emphasis">{{ t('notifications.overline') }}</div>
+        <h1 class="text-h4 font-weight-bold">{{ t('notifications.title') }}</h1>
+      </div>
       <v-spacer />
       <v-btn
         v-if="notif.unread.value > 0"
@@ -25,16 +29,16 @@ async function onClick(id: string) {
         variant="tonal"
         @click="notif.markAllRead()"
       >
-        Marcar todas como leídas
+        {{ t('notifications.markAllRead') }}
       </v-btn>
     </div>
 
-    <v-card>
+    <v-card variant="outlined">
       <v-list density="comfortable">
         <v-list-item
           v-for="n in notif.list.value"
           :key="n.id"
-          :class="!n.readAt ? 'bg-blue-grey-lighten-5' : ''"
+          :active="!n.readAt"
           @click="onClick(n.id)"
         >
           <template #prepend>
@@ -43,12 +47,12 @@ async function onClick(id: string) {
           <v-list-item-title>{{ n.message }}</v-list-item-title>
           <v-list-item-subtitle>
             {{ new Date(n.createdAt).toLocaleString() }}
-            <span v-if="n.readAt"> · leída</span>
+            <span v-if="n.readAt"> · {{ t('notifications.read') }}</span>
           </v-list-item-subtitle>
         </v-list-item>
         <v-list-item v-if="notif.list.value.length === 0">
           <v-list-item-title class="text-center text-medium-emphasis">
-            No tienes notificaciones todavía.
+            {{ t('notifications.empty') }}
           </v-list-item-title>
         </v-list-item>
       </v-list>

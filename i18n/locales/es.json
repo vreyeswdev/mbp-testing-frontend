@@ -1,0 +1,467 @@
+{
+  "common": {
+    "appName": "MBP Testing",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "apply": "Aplicar",
+    "close": "Cerrar",
+    "open": "Abrir",
+    "back": "Volver",
+    "next": "Siguiente",
+    "search": "Buscar",
+    "loading": "Cargando…",
+    "noData": "Sin datos",
+    "yes": "Sí",
+    "no": "No",
+    "optional": "Opcional",
+    "required": "Requerido",
+    "emptyDash": "—",
+    "by": "por",
+    "comment": "Comentario",
+    "commentOptional": "Comentario (opcional)",
+    "reason": "Motivo",
+    "reasonOptional": "Motivo (opcional)",
+    "description": "Descripción",
+    "name": "Nombre",
+    "title": "Título",
+    "email": "Email",
+    "password": "Contraseña",
+    "fullName": "Nombre completo",
+    "phone": "Teléfono",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "severity": "Severidad",
+    "type": "Tipo",
+    "code": "Código",
+    "country": "País",
+    "company": "Compañía",
+    "project": "Proyecto",
+    "module": "Módulo",
+    "feature": "Funcionalidad",
+    "environment": "Ambiente",
+    "specialist": "Especialista",
+    "client": "Cliente",
+    "admin": "Administrador",
+    "createdAt": "Creado",
+    "updatedAt": "Actualizado",
+    "amount": "Monto",
+    "hours": "Horas",
+    "days": "Días",
+    "hourlyRate": "Tarifa por hora",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "actions": "Acciones",
+    "load": "Cargar",
+    "refresh": "Actualizar",
+    "errorGeneric": "Ocurrió un error",
+    "errorLoad": "No fue posible cargar",
+    "errorCreate": "No fue posible crear",
+    "errorSave": "No fue posible guardar",
+    "errorDelete": "No fue posible eliminar"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "enter": "Entrar",
+    "portalAccess": "Acceso al portal",
+    "portalSubtitle": "Solo cuentas habilitadas por el administrador",
+    "emailRequired": "El email es requerido",
+    "emailInvalid": "Email inválido",
+    "passwordRequired": "La contraseña es requerida",
+    "passwordMin": "Mínimo 8 caracteres",
+    "loginFailed": "No fue posible iniciar sesión",
+    "noAccount": "¿Aún no tienes cuenta?",
+    "requestService": "Solicita el servicio",
+    "demoNote": "Demo: user{'@'}mbp.test / User1234",
+    "roles": "Roles"
+  },
+  "nav": {
+    "services": "Servicios",
+    "process": "Proceso",
+    "requestService": "Solicitar servicio",
+    "goToPanel": "Ir al panel",
+    "clientsAccess": "Acceso clientes",
+    "dashboard": "Dashboard",
+    "requests": "Solicitudes",
+    "notifications": "Notificaciones",
+    "profile": "Mi perfil",
+    "administration": "Administración",
+    "submissions": "Submissions",
+    "companies": "Compañías",
+    "testTypes": "Tipos de prueba",
+    "environments": "Ambientes",
+    "adminPanelTitle": "Panel de administración",
+    "console": "Consola"
+  },
+  "footer": {
+    "tagline": "Servicios profesionales de aseguramiento de calidad.",
+    "copyright": "© {year} MBP Testing. {tagline}"
+  },
+  "welcome": {
+    "overline": "QA · Automatización · Seguridad",
+    "title": "Aseguramiento de calidad para productos digitales serios",
+    "subtitle": "Pruebas funcionales, automatización y seguridad como servicio. Visibilidad completa del proceso, del primer reporte al fix verificado.",
+    "ctaPrimary": "Solicitar servicio",
+    "ctaSecondary": "Acceso clientes",
+    "benefits": {
+      "tracked": "Horas trazables por ítem",
+      "flow": "Flujo bug → review → done",
+      "metrics": "Métricas en tiempo real",
+      "reports": "Reportes accionables"
+    },
+    "services": {
+      "overline": "Servicios",
+      "title": "Qué hacemos",
+      "functional": {
+        "title": "QA funcional",
+        "description": "Pruebas manuales y exploratorias sobre features críticas, cobertura por módulo y reportes accionables."
+      },
+      "automation": {
+        "title": "Automatización",
+        "description": "Suites end-to-end, API e integración. Pipelines reproducibles y resultados versionados por commit."
+      },
+      "security": {
+        "title": "Seguridad aplicada",
+        "description": "Revisión de autenticación, control de acceso y dependencias. Informe con severidad y guía de corrección."
+      }
+    },
+    "process": {
+      "overline": "Cómo trabajamos",
+      "title": "Del primer mensaje al fix verificado",
+      "s1": { "title": "Solicitas el servicio", "description": "Describes el producto, el alcance y los entornos. Sin necesidad de crear cuenta." },
+      "s2": { "title": "Definimos alcance y presupuesto", "description": "Un especialista arma un presupuesto con horas estimadas por ítem y te lo envía." },
+      "s3": { "title": "Aprobación y onboarding", "description": "Si lo apruebas, creamos tu compañía, usuario y proyecto. Recibes credenciales por email." },
+      "s4": { "title": "Ejecución con trazabilidad", "description": "Sigues el tablero kanban, ves cada bug, su fix asociado y métricas hasta el cierre." }
+    },
+    "cta": {
+      "title": "¿Listos para empezar?",
+      "subtitle": "Cuéntanos qué necesitas probar. Recibirás un presupuesto detallado en horas-persona."
+    }
+  },
+  "contact": {
+    "overline": "Solicitud de servicio",
+    "title": "Solicitar servicio de QA",
+    "subtitle": "Cuéntanos qué necesitas testear. Un especialista revisará tu solicitud, definirá el alcance y te enviará un presupuesto en horas-persona.",
+    "section1": "1. Contacto",
+    "section2": "2. Proyecto",
+    "section3": "3. Necesidad de QA",
+    "contactName": "Nombre completo",
+    "contactEmail": "Email corporativo",
+    "contactEmailHint": "Será tu usuario al aceptar el presupuesto",
+    "contactPhone": "Teléfono (opcional)",
+    "projectName": "Nombre del proyecto o producto",
+    "projectDescription": "Descripción breve del proyecto",
+    "projectDescriptionHint": "Sector, tecnologías, estado actual",
+    "scopeNotes": "¿Qué necesitas testear? Módulos, funcionalidades, riesgos",
+    "scopeNotesHint": "Cuanto más detalle, más preciso el presupuesto",
+    "send": "Enviar solicitud",
+    "errorSend": "No fue posible enviar la solicitud. Intenta de nuevo.",
+    "success": {
+      "title": "Recibimos tu solicitud",
+      "body": "Te contactaremos a {email} cuando el especialista termine de revisar el alcance.",
+      "trackingId": "ID: {id}",
+      "back": "Volver al inicio"
+    }
+  },
+  "dashboard": {
+    "overline": "Métricas",
+    "title": "Dashboard",
+    "globalSection": "Visión global",
+    "mySection": "Mis métricas",
+    "byCompanySection": "Por compañía",
+    "metrics": {
+      "activeRequests": "Solicitudes activas",
+      "completedRequests": "Completadas",
+      "cancelledRequests": "Canceladas",
+      "openFixes": "Fixes abiertos",
+      "resolvedFixes": "Fixes resueltos",
+      "cardsInProgress": "Tarjetas en marcha",
+      "approvedAmount": "Monto aprobado (todas las cotizaciones)",
+      "assignedRequests": "Solicitudes asignadas",
+      "completedCards": "Tarjetas completadas",
+      "avgCycle": "Ciclo promedio",
+      "avgCycleHint": "por tarjeta finalizada",
+      "assignedFixes": "Fixes asignados",
+      "openFixesShort": "Fixes abiertos",
+      "resolvedFixesShort": "Fixes resueltos"
+    },
+    "company": {
+      "projects": "Proyectos",
+      "requests": "Solicitudes",
+      "approvedAmount": "Monto aprobado"
+    },
+    "empty": "No hay métricas para mostrar para tu rol.",
+    "errors": {
+      "global": "No fue posible cargar métricas globales",
+      "specialist": "No fue posible cargar métricas del especialista"
+    }
+  },
+  "requests": {
+    "overline": "QA",
+    "title": "Solicitudes",
+    "new": "Nueva solicitud",
+    "headers": {
+      "title": "Título",
+      "project": "Proyecto",
+      "testType": "Tipo de prueba",
+      "status": "Estado",
+      "specialist": "Especialista"
+    },
+    "dialog": {
+      "newTitle": "Nueva solicitud",
+      "projectLabel": "Proyecto",
+      "testTypeLabel": "Tipo de prueba",
+      "environmentLabel": "Ambiente (opcional)",
+      "titleLabel": "Título",
+      "descriptionLabel": "Descripción"
+    },
+    "detail": {
+      "back": "Volver a solicitudes",
+      "viewBoard": "Ver tablero",
+      "requestedBy": "Solicitada por",
+      "specialist": "Especialista",
+      "createdAt": "Creada",
+      "assignSpecialist": "Asignar especialista",
+      "transitionTo": "Cambiar a {label}",
+      "history": "Historial",
+      "quote": "Presupuesto",
+      "noActiveQuote": "No hay una cotización activa.",
+      "createDraft": "Crear borrador",
+      "addItem": "Agregar item",
+      "sendToClient": "Enviar al cliente",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "totalHours": "Total horas",
+      "newItem": "Nuevo item",
+      "editItem": "Editar item",
+      "specialistInput": "Especialista",
+      "rejectQuote": "Rechazar cotización"
+    }
+  },
+  "board": {
+    "back": "Volver al detalle",
+    "overline": "Kanban",
+    "title": "Tablero",
+    "addCard": "Agregar",
+    "newCard": "Nueva tarjeta",
+    "noCards": "Sin tarjetas",
+    "columns": {
+      "BACKLOG": "Backlog",
+      "IN_PROGRESS": "En progreso",
+      "ON_HOLD": "En pausa",
+      "DONE": "Hecho"
+    },
+    "card": {
+      "feature": "Funcionalidad (opcional)",
+      "initialColumn": "Columna inicial",
+      "started": "Inició: {value}",
+      "completed": "Finalizó: {value}",
+      "fixes": "Fixes",
+      "noFixes": "Sin fixes en esta tarjeta.",
+      "newFix": "Nuevo fix",
+      "reportFix": "Reportar fix"
+    }
+  },
+  "fixes": {
+    "back": "Volver",
+    "reportedBy": "Reportado por",
+    "assignedTo": "Asignado a",
+    "resolvedAt": "Resuelto",
+    "comments": "Comentarios",
+    "noComments": "Sin comentarios.",
+    "writeComment": "Escribe un comentario…",
+    "post": "Comentar",
+    "transitionTo": "Cambiar a {label}"
+  },
+  "notifications": {
+    "overline": "Bandeja",
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todas como leídas",
+    "empty": "No tienes notificaciones todavía.",
+    "popoverTitle": "Notificaciones",
+    "markAllShort": "Marcar todas",
+    "empty2": "Sin notificaciones",
+    "viewAll": "Ver todas",
+    "read": "leída"
+  },
+  "profile": {
+    "overline": "Cuenta",
+    "title": "Mi perfil",
+    "sessionData": "Datos de sesión",
+    "backendStatus": "Estado del backend"
+  },
+  "admin": {
+    "submissions": {
+      "overline": "Admin · Intake",
+      "title": "Submissions",
+      "filter": "Filtro de estado",
+      "filterAll": "Todas",
+      "filterPending": "Pendientes",
+      "filterAwaiting": "En scoping",
+      "filterBudgeted": "Presupuestadas",
+      "filterAccepted": "Aceptadas",
+      "filterRejected": "Rechazadas",
+      "noData": "Sin submissions",
+      "headers": {
+        "date": "Fecha",
+        "project": "Proyecto",
+        "contact": "Contacto",
+        "email": "Email",
+        "status": "Estado",
+        "amount": "Monto"
+      },
+      "open": "Abrir",
+      "detail": {
+        "back": "Volver al listado",
+        "header": "submission #{id}",
+        "contact": "Contacto",
+        "dates": "Fechas",
+        "received": "Recibida",
+        "decided": "Decidida",
+        "totals": "Totales",
+        "clientNotes": "Notas del cliente",
+        "viewRequest": "Ver la solicitud generada",
+        "rejectReason": "Motivo del rechazo: {reason}",
+        "scopeSection": "1 — Alcance: módulos y funcionalidades",
+        "scopeCount": "{count} funcionalidades",
+        "module": "Módulo",
+        "noScope": "Aún no hay funcionalidades de alcance.",
+        "addFeature": "Agregar funcionalidad",
+        "budgetSection": "2 — Presupuesto (días-persona)",
+        "budgetTotal": "Total: {hours} h • {amount}",
+        "noBudget": "Aún no hay items de presupuesto.",
+        "addItem": "Agregar item",
+        "flowSection": "3 — Flujo de decisión",
+        "toScoping": "Pasar a scoping",
+        "sendBudget": "Enviar presupuesto al cliente",
+        "acceptBudget": "Aceptar presupuesto (cliente)",
+        "reject": "Rechazar",
+        "acceptDialog": {
+          "title": "Aceptar presupuesto",
+          "description": "Esto creará la compañía, el usuario del cliente, el proyecto, módulos, funcionalidades, la solicitud (CONFIRMADA) y el presupuesto (APROBADO). Se enviarán las credenciales por email.",
+          "companyName": "Nombre de la compañía",
+          "country": "País",
+          "testType": "Tipo de prueba",
+          "environment": "Ambiente",
+          "assignedSpecialist": "Especialista asignado",
+          "confirm": "Aceptar y crear todo"
+        },
+        "rejectDialog": {
+          "title": "Rechazar submission",
+          "reason": "Motivo"
+        },
+        "result": {
+          "title": "Submission aceptada",
+          "body": "Se crearon las entidades del proyecto y se notificó al cliente.",
+          "user": "usuario:",
+          "manualPassword": "El envío por email está deshabilitado. Comparte manualmente la contraseña temporal:",
+          "emailSent": "Email con credenciales enviado.",
+          "testRequest": "solicitud:",
+          "quote": "presupuesto:",
+          "goToRequest": "Ir a la solicitud"
+        }
+      }
+    },
+    "companies": {
+      "overline": "Admin",
+      "title": "Compañías",
+      "new": "Nueva compañía",
+      "newDialog": "Nueva compañía",
+      "fiscalId": "Identificador fiscal",
+      "active": "Activa",
+      "headers": {
+        "name": "Nombre",
+        "country": "País",
+        "fiscalId": "ID fiscal",
+        "active": "Activa"
+      },
+      "errorLoad": "No fue posible cargar las compañías",
+      "errorCreate": "No fue posible crear la compañía"
+    },
+    "companyDetail": {
+      "back": "Volver a compañías",
+      "country": "País",
+      "fiscalId": "ID fiscal",
+      "status": "Estado",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "tabUsers": "Usuarios",
+      "tabProjects": "Proyectos",
+      "assignUser": "Asignar usuario",
+      "headersUsers": { "email": "Email", "name": "Nombre", "roles": "Roles" },
+      "newProject": "Nuevo proyecto",
+      "headersProjects": { "name": "Nombre", "status": "Estado", "created": "Creado" },
+      "assignDialog": {
+        "title": "Asignar usuario",
+        "userId": "UUID del usuario",
+        "hint": "Por ahora se ingresa el ID del usuario manualmente"
+      },
+      "projectDialog": {
+        "title": "Nuevo proyecto",
+        "name": "Nombre",
+        "description": "Descripción",
+        "status": "Estado"
+      },
+      "projectStatusOptions": {
+        "ACTIVE": "Activo",
+        "ON_HOLD": "En pausa",
+        "ARCHIVED": "Archivado"
+      }
+    },
+    "projectDetail": {
+      "back": "Volver a compañía",
+      "status": "Estado",
+      "modules": "Módulos",
+      "newModule": "Nuevo módulo",
+      "featuresCount": "{count} funcionalidades",
+      "noModules": "Aún no hay módulos. Crea el primero arriba.",
+      "feature": "Funcionalidad",
+      "headers": {
+        "name": "Nombre",
+        "priority": "Prioridad",
+        "severity": "Severidad",
+        "status": "Estado"
+      },
+      "moduleDialog": {
+        "title": "Nuevo módulo",
+        "position": "Posición"
+      },
+      "featureDialog": {
+        "title": "Nueva funcionalidad",
+        "name": "Nombre",
+        "description": "Descripción",
+        "acceptanceCriteria": "Criterios de aceptación",
+        "priority": "Prioridad",
+        "severity": "Severidad",
+        "status": "Estado",
+        "position": "Posición"
+      }
+    },
+    "testTypes": {
+      "overline": "Catálogos",
+      "title": "Tipos de prueba",
+      "new": "Nuevo",
+      "headers": { "code": "Código", "name": "Nombre", "description": "Descripción" },
+      "dialog": {
+        "title": "Nuevo tipo de prueba",
+        "code": "Código (UPPER_CASE)",
+        "name": "Nombre",
+        "description": "Descripción"
+      }
+    },
+    "environments": {
+      "overline": "Catálogos",
+      "title": "Ambientes",
+      "new": "Nuevo",
+      "headers": { "code": "Código", "name": "Nombre" },
+      "dialog": {
+        "title": "Nuevo ambiente",
+        "code": "Código (UPPER_CASE)",
+        "name": "Nombre"
+      }
+    }
+  }
+}

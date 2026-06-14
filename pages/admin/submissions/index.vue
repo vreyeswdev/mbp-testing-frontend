@@ -3,10 +3,12 @@ import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   ssr: false,
+  layout: 'console',
   requiresRole: ['ROLE_ADMIN', 'ROLE_ESPECIALISTA']
 })
 
-useHead({ title: 'Submissions — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('admin.submissions.title')} — ${t('common.appName')}` })
 
 type SubmissionStatus = 'PENDING' | 'AWAITING_CLARIFICATION' | 'BUDGETED' | 'ACCEPTED' | 'REJECTED'
 
@@ -16,6 +18,7 @@ interface SubmissionRow {
   contactEmail: string
   projectName: string
   status: SubmissionStatus
+  statusLabel: string
   submittedAt: string
   totalBudgetAmount: number
 }
@@ -27,21 +30,21 @@ const loading = ref(true)
 const statusFilter = ref<SubmissionStatus | null>(null)
 const error = ref<string | null>(null)
 
-const statusOptions = [
-  { value: null, title: 'Todas' },
-  { value: 'PENDING', title: 'Pendientes' },
-  { value: 'AWAITING_CLARIFICATION', title: 'En scoping' },
-  { value: 'BUDGETED', title: 'Presupuestadas' },
-  { value: 'ACCEPTED', title: 'Aceptadas' },
-  { value: 'REJECTED', title: 'Rechazadas' }
-]
+const statusOptions = computed(() => [
+  { value: null, title: t('admin.submissions.filterAll') },
+  { value: 'PENDING', title: t('admin.submissions.filterPending') },
+  { value: 'AWAITING_CLARIFICATION', title: t('admin.submissions.filterAwaiting') },
+  { value: 'BUDGETED', title: t('admin.submissions.filterBudgeted') },
+  { value: 'ACCEPTED', title: t('admin.submissions.filterAccepted') },
+  { value: 'REJECTED', title: t('admin.submissions.filterRejected') }
+])
 
-const statusMeta: Record<SubmissionStatus, { color: string; label: string }> = {
-  PENDING: { color: 'info', label: 'Nueva' },
-  AWAITING_CLARIFICATION: { color: 'warning', label: 'Scoping' },
-  BUDGETED: { color: 'primary', label: 'Presupuesto enviado' },
-  ACCEPTED: { color: 'success', label: 'Aceptada' },
-  REJECTED: { color: 'error', label: 'Rechazada' }
+const statusColor: Record<SubmissionStatus, string> = {
+  PENDING: 'info',
+  AWAITING_CLARIFICATION: 'warning',
+  BUDGETED: 'primary',
+  ACCEPTED: 'success',
+  REJECTED: 'error'
 }
 
 async function load() {
@@ -51,7 +54,7 @@ async function load() {
     const q = statusFilter.value ? `?status=${statusFilter.value}` : ''
     items.value = await api.get<SubmissionRow[]>(`/submissions${q}`)
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar las submissions'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -60,15 +63,15 @@ async function load() {
 watch(statusFilter, load)
 onMounted(load)
 
-const headers = [
-  { title: 'Fecha', key: 'submittedAt' },
-  { title: 'Proyecto', key: 'projectName' },
-  { title: 'Contacto', key: 'contactName' },
-  { title: 'Email', key: 'contactEmail' },
-  { title: 'Estado', key: 'status' },
-  { title: 'Monto', key: 'totalBudgetAmount', align: 'end' as const },
+const headers = computed(() => [
+  { title: t('admin.submissions.headers.date'), key: 'submittedAt' },
+  { title: t('admin.submissions.headers.project'), key: 'projectName' },
+  { title: t('admin.submissions.headers.contact'), key: 'contactName' },
+  { title: t('admin.submissions.headers.email'), key: 'contactEmail' },
+  { title: t('admin.submissions.headers.status'), key: 'status' },
+  { title: t('admin.submissions.headers.amount'), key: 'totalBudgetAmount', align: 'end' as const },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
-]
+])
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleString()
@@ -83,8 +86,8 @@ function fmtMoney(n: number) {
   <v-container class="py-8" max-width="1280">
     <div class="d-flex align-center mb-6">
       <div>
-        <span class="cyber-subtitle">// admin / intake</span>
-        <h1 class="text-h4 cyber-title mt-1">Submissions</h1>
+        <div class="text-overline text-medium-emphasis">{{ t('admin.submissions.overline') }}</div>
+        <h1 class="text-h4 font-weight-bold">{{ t('admin.submissions.title') }}</h1>
       </div>
       <v-spacer />
       <v-select
@@ -92,7 +95,7 @@ function fmtMoney(n: number) {
         :items="statusOptions"
         item-title="title"
         item-value="value"
-        label="Filtro de estado"
+        :label="t('admin.submissions.filter')"
         density="compact"
         hide-details
         style="max-width: 240px"
@@ -103,25 +106,25 @@ function fmtMoney(n: number) {
       {{ error }}
     </v-alert>
 
-    <v-card class="cyber-card">
+    <v-card variant="outlined">
       <v-data-table
         :headers="headers"
         :items="items"
         :loading="loading"
         items-per-page="25"
         density="comfortable"
-        no-data-text="Sin submissions"
+        :no-data-text="t('admin.submissions.noData')"
       >
         <template #item.submittedAt="{ value }">
-          <span class="cyber-mono text-caption">{{ fmtDate(value) }}</span>
+          <span class="text-caption">{{ fmtDate(value) }}</span>
         </template>
-        <template #item.status="{ value }">
-          <v-chip :color="statusMeta[value as SubmissionStatus].color" size="small" variant="tonal" class="cyber-chip">
-            {{ statusMeta[value as SubmissionStatus].label }}
+        <template #item.status="{ item }">
+          <v-chip :color="statusColor[item.status]" size="small" variant="tonal">
+            {{ item.statusLabel || item.status }}
           </v-chip>
         </template>
         <template #item.totalBudgetAmount="{ value }">
-          <span class="cyber-mono">{{ fmtMoney(value) }}</span>
+          {{ fmtMoney(value) }}
         </template>
         <template #item.actions="{ item }">
           <v-btn
@@ -131,7 +134,7 @@ function fmtMoney(n: number) {
             :to="`/admin/submissions/${item.id}`"
             append-icon="mdi-arrow-right"
           >
-            Abrir
+            {{ t('admin.submissions.open') }}
           </v-btn>
         </template>
       </v-data-table>

@@ -4,10 +4,12 @@ import { useCatalog } from '~/composables/useCatalog'
 
 definePageMeta({
   ssr: false,
+  layout: 'console',
   requiresRole: ['ROLE_ADMIN', 'ROLE_ESPECIALISTA']
 })
 
-useHead({ title: 'Project — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('common.project')} — ${t('common.appName')}` })
 
 interface ProjectDto {
   id: string
@@ -16,6 +18,7 @@ interface ProjectDto {
   name: string
   description: string | null
   status: string
+  statusLabel: string
   createdAt: string
 }
 
@@ -35,8 +38,11 @@ interface FeatureDto {
   description: string | null
   acceptanceCriteria: string | null
   priority: string
+  priorityLabel: string
   severity: string
+  severityLabel: string
   status: string
+  statusLabel: string
   position: number
   createdAt: string
 }
@@ -79,7 +85,7 @@ async function load() {
     })
     await Promise.all(featureCalls)
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar el proyecto'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -96,7 +102,7 @@ async function saveModule() {
     moduleDialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear el módulo'
+    error.value = e?.data?.message || t('common.errorCreate')
   }
 }
 
@@ -122,7 +128,7 @@ async function saveFeature() {
     featureDialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear la feature'
+    error.value = e?.data?.message || t('common.errorCreate')
   }
 }
 
@@ -131,7 +137,7 @@ async function removeFeature(f: FeatureDto) {
     await api.del(`/features/${f.id}`)
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible eliminar'
+    error.value = e?.data?.message || t('common.errorDelete')
   }
 }
 
@@ -140,7 +146,7 @@ async function removeModule(m: ModuleDto) {
     await api.del(`/modules/${m.id}`)
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible eliminar el módulo'
+    error.value = e?.data?.message || t('common.errorDelete')
   }
 }
 
@@ -166,19 +172,19 @@ function severityColor(s: string) {
 
 onMounted(load)
 
-const featureHeaders = [
-  { title: 'Nombre', key: 'name' },
-  { title: 'Prioridad', key: 'priority' },
-  { title: 'Severidad', key: 'severity' },
-  { title: 'Estado', key: 'status' },
+const featureHeaders = computed(() => [
+  { title: t('admin.projectDetail.headers.name'), key: 'name' },
+  { title: t('admin.projectDetail.headers.priority'), key: 'priority' },
+  { title: t('admin.projectDetail.headers.severity'), key: 'severity' },
+  { title: t('admin.projectDetail.headers.status'), key: 'status' },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
-]
+])
 </script>
 
 <template>
   <v-container class="py-8">
     <v-btn variant="text" prepend-icon="mdi-arrow-left" :to="project ? `/admin/companias/${project.companiaId}` : '/admin/companias'" class="mb-4">
-      Volver a compañía
+      {{ t('admin.projectDetail.back') }}
     </v-btn>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
@@ -192,17 +198,17 @@ const featureHeaders = [
         <v-card-title>{{ project.name }}</v-card-title>
         <v-card-subtitle>{{ project.companiaNombre }}</v-card-subtitle>
         <v-card-text>
-          <div class="text-overline">Estado</div>
-          <v-chip size="small" variant="tonal">{{ project.status }}</v-chip>
+          <div class="text-overline">{{ t('admin.projectDetail.status') }}</div>
+          <v-chip size="small" variant="tonal">{{ project.statusLabel || project.status }}</v-chip>
           <div v-if="project.description" class="mt-3">{{ project.description }}</div>
         </v-card-text>
       </v-card>
 
       <div class="d-flex align-center mb-3">
-        <h2 class="text-h6 font-weight-medium">Modules</h2>
+        <h2 class="text-h6 font-weight-medium">{{ t('admin.projectDetail.modules') }}</h2>
         <v-spacer />
         <v-btn color="primary" size="small" prepend-icon="mdi-plus" @click="openNewModule">
-          Nuevo módulo
+          {{ t('admin.projectDetail.newModule') }}
         </v-btn>
       </div>
 
@@ -213,7 +219,7 @@ const featureHeaders = [
               <span class="font-weight-medium">{{ m.name }}</span>
               <v-spacer />
               <v-chip size="x-small" variant="tonal" class="mr-2">
-                {{ featuresByModule[m.id]?.length ?? 0 }} features
+                {{ t('admin.projectDetail.featuresCount', { count: featuresByModule[m.id]?.length ?? 0 }) }}
               </v-chip>
               <v-btn
                 size="x-small"
@@ -226,10 +232,10 @@ const featureHeaders = [
           </v-expansion-panel-title>
           <v-expansion-panel-text>
             <div class="d-flex align-center mb-3">
-              <span class="text-body-2 text-medium-emphasis">{{ m.description || '—' }}</span>
+              <span class="text-body-2 text-medium-emphasis">{{ m.description || t('common.emptyDash') }}</span>
               <v-spacer />
               <v-btn color="primary" variant="tonal" size="small" prepend-icon="mdi-plus" @click="openNewFeature(m.id)">
-                Feature
+                {{ t('admin.projectDetail.feature') }}
               </v-btn>
             </div>
             <v-data-table
@@ -238,14 +244,14 @@ const featureHeaders = [
               density="compact"
               hide-default-footer
             >
-              <template #item.priority="{ value }">
-                <v-chip :color="priorityColor(value)" size="x-small" variant="tonal">{{ value }}</v-chip>
+              <template #item.priority="{ item }">
+                <v-chip :color="priorityColor(item.priority)" size="x-small" variant="tonal">{{ item.priorityLabel || item.priority }}</v-chip>
               </template>
-              <template #item.severity="{ value }">
-                <v-chip :color="severityColor(value)" size="x-small" variant="tonal">{{ value }}</v-chip>
+              <template #item.severity="{ item }">
+                <v-chip :color="severityColor(item.severity)" size="x-small" variant="tonal">{{ item.severityLabel || item.severity }}</v-chip>
               </template>
-              <template #item.status="{ value }">
-                <v-chip size="x-small" variant="tonal">{{ value }}</v-chip>
+              <template #item.status="{ item }">
+                <v-chip size="x-small" variant="tonal">{{ item.statusLabel || item.status }}</v-chip>
               </template>
               <template #item.actions="{ item }">
                 <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click="removeFeature(item)" />
@@ -255,33 +261,33 @@ const featureHeaders = [
         </v-expansion-panel>
       </v-expansion-panels>
       <v-card v-else variant="tonal" class="pa-4 text-center text-medium-emphasis">
-        Aún no hay modules. Crea el primero arriba.
+        {{ t('admin.projectDetail.noModules') }}
       </v-card>
     </template>
 
     <v-dialog v-model="moduleDialog" max-width="520">
       <v-card>
-        <v-card-title>Nuevo módulo</v-card-title>
+        <v-card-title>{{ t('admin.projectDetail.moduleDialog.title') }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="moduleForm.name" label="Nombre" />
-          <v-textarea v-model="moduleForm.description" label="Descripción" rows="2" />
-          <v-text-field v-model.number="moduleForm.position" label="Posición" type="number" />
+          <v-text-field v-model="moduleForm.name" :label="t('common.name')" />
+          <v-textarea v-model="moduleForm.description" :label="t('common.description')" rows="2" />
+          <v-text-field v-model.number="moduleForm.position" :label="t('admin.projectDetail.moduleDialog.position')" type="number" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="moduleDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="saveModule">Crear</v-btn>
+          <v-btn variant="text" @click="moduleDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" @click="saveModule">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="featureDialog" max-width="640">
       <v-card>
-        <v-card-title>Nueva feature</v-card-title>
+        <v-card-title>{{ t('admin.projectDetail.featureDialog.title') }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="featureForm.name" label="Nombre" />
-          <v-textarea v-model="featureForm.description" label="Descripción" rows="2" />
-          <v-textarea v-model="featureForm.acceptanceCriteria" label="Criterios de aceptación" rows="3" />
+          <v-text-field v-model="featureForm.name" :label="t('admin.projectDetail.featureDialog.name')" />
+          <v-textarea v-model="featureForm.description" :label="t('admin.projectDetail.featureDialog.description')" rows="2" />
+          <v-textarea v-model="featureForm.acceptanceCriteria" :label="t('admin.projectDetail.featureDialog.acceptanceCriteria')" rows="3" />
           <v-row>
             <v-col cols="12" md="4">
               <v-select
@@ -289,7 +295,7 @@ const featureHeaders = [
                 :items="catalog.state.value.priorities"
                 item-title="label"
                 item-value="code"
-                label="Prioridad"
+                :label="t('admin.projectDetail.featureDialog.priority')"
               />
             </v-col>
             <v-col cols="12" md="4">
@@ -298,7 +304,7 @@ const featureHeaders = [
                 :items="catalog.state.value.severities"
                 item-title="label"
                 item-value="code"
-                label="Severidad"
+                :label="t('admin.projectDetail.featureDialog.severity')"
               />
             </v-col>
             <v-col cols="12" md="4">
@@ -307,16 +313,16 @@ const featureHeaders = [
                 :items="catalog.state.value.featureStatuses"
                 item-title="label"
                 item-value="code"
-                label="Estado"
+                :label="t('admin.projectDetail.featureDialog.status')"
               />
             </v-col>
           </v-row>
-          <v-text-field v-model.number="featureForm.position" label="Posición" type="number" />
+          <v-text-field v-model.number="featureForm.position" :label="t('admin.projectDetail.featureDialog.position')" type="number" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="featureDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="saveFeature">Crear</v-btn>
+          <v-btn variant="text" @click="featureDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" @click="saveFeature">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

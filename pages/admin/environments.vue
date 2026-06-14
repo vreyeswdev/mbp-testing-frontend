@@ -3,10 +3,12 @@ import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   ssr: false,
+  layout: 'console',
   requiresRole: 'ROLE_ADMIN'
 })
 
-useHead({ title: 'Environments — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('admin.environments.title')} — ${t('common.appName')}` })
 
 interface EnvironmentDto {
   id: string
@@ -29,7 +31,7 @@ async function load() {
   try {
     items.value = await api.get<EnvironmentDto[]>('/environments')
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -50,7 +52,7 @@ async function save() {
     dialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear'
+    error.value = e?.data?.message || t('common.errorCreate')
   } finally {
     saving.value = false
   }
@@ -61,32 +63,35 @@ async function remove(item: EnvironmentDto) {
     await api.del(`/environments/${item.id}`)
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible eliminar'
+    error.value = e?.data?.message || t('common.errorDelete')
   }
 }
 
 onMounted(load)
 
-const headers = [
-  { title: 'Código', key: 'code' },
-  { title: 'Nombre', key: 'name' },
+const headers = computed(() => [
+  { title: t('admin.environments.headers.code'), key: 'code' },
+  { title: t('admin.environments.headers.name'), key: 'name' },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
-]
+])
 </script>
 
 <template>
   <v-container class="py-8">
-    <div class="d-flex align-center mb-4">
-      <h1 class="text-h5 font-weight-medium">Environments</h1>
+    <div class="d-flex align-center mb-6">
+      <div>
+        <div class="text-overline text-medium-emphasis">{{ t('admin.environments.overline') }}</div>
+        <h1 class="text-h4 font-weight-bold">{{ t('admin.environments.title') }}</h1>
+      </div>
       <v-spacer />
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="openNew">Nuevo</v-btn>
+      <v-btn color="primary" prepend-icon="mdi-plus" @click="openNew">{{ t('admin.environments.new') }}</v-btn>
     </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
       {{ error }}
     </v-alert>
 
-    <v-card>
+    <v-card variant="outlined">
       <v-data-table
         :headers="headers"
         :items="items"
@@ -102,15 +107,15 @@ const headers = [
 
     <v-dialog v-model="dialog" max-width="480">
       <v-card>
-        <v-card-title>Nuevo environment</v-card-title>
+        <v-card-title>{{ t('admin.environments.dialog.title') }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="form.code" label="Código (UPPER_CASE)" />
-          <v-text-field v-model="form.name" label="Nombre" />
+          <v-text-field v-model="form.code" :label="t('admin.environments.dialog.code')" />
+          <v-text-field v-model="form.name" :label="t('admin.environments.dialog.name')" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :loading="saving" @click="save">Crear</v-btn>
+          <v-btn variant="text" @click="dialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :loading="saving" @click="save">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

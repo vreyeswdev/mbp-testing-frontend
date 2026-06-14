@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string | null
   fullName: string | null
   roles: Role[]
+  roleLabels: string[]
 }
 
 export interface AuthState extends AuthUser {
@@ -20,27 +21,28 @@ export interface AuthSessionPayload {
     email: string
     fullName: string
     roles: Role[]
+    roleLabels?: string[]
   }
 }
 
-const META_COOKIE = 'mbp_auth'
-const TOKEN_COOKIE = 'mbp_token'
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+export const META_COOKIE = 'mbp_auth'
+export const TOKEN_COOKIE = 'mbp_token'
+export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 
-function metaCookie() {
-  return useCookie<AuthUser>(META_COOKIE, {
-    default: () => ({ id: null, email: null, fullName: null, roles: [] }),
+export function authMetaCookie() {
+  return useCookie<AuthUser | null>(META_COOKIE, {
+    default: () => null,
     sameSite: 'lax',
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: AUTH_COOKIE_MAX_AGE,
     secure: !import.meta.dev
   })
 }
 
-function tokenCookie() {
+export function authTokenCookie() {
   return useCookie<string | null>(TOKEN_COOKIE, {
     default: () => null,
     sameSite: 'lax',
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: AUTH_COOKIE_MAX_AGE,
     secure: !import.meta.dev
   })
 }
@@ -51,6 +53,7 @@ export const useAuthStore = defineStore('auth', {
     email: null,
     fullName: null,
     roles: [],
+    roleLabels: [],
     accessToken: null
   }),
   getters: {
@@ -67,32 +70,37 @@ export const useAuthStore = defineStore('auth', {
       this.email = payload.user.email
       this.fullName = payload.user.fullName
       this.roles = [...(payload.user.roles ?? [])]
+      this.roleLabels = [...(payload.user.roleLabels ?? [])]
       this.accessToken = payload.accessToken
-      metaCookie().value = {
+      authMetaCookie().value = {
         id: payload.user.id,
         email: payload.user.email,
         fullName: payload.user.fullName,
-        roles: this.roles
+        roles: this.roles,
+        roleLabels: this.roleLabels
       }
-      tokenCookie().value = payload.accessToken
+      authTokenCookie().value = payload.accessToken
     },
-    loadFromStorage() {
-      const meta = metaCookie().value
-      const token = tokenCookie().value
+    applyFromCookies(meta: AuthUser | null, token: string | null) {
       this.id = meta?.id ?? null
       this.email = meta?.email ?? null
       this.fullName = meta?.fullName ?? null
       this.roles = Array.isArray(meta?.roles) ? [...meta.roles] : []
+      this.roleLabels = Array.isArray(meta?.roleLabels) ? [...meta.roleLabels] : []
       this.accessToken = token ?? null
+    },
+    loadFromStorage() {
+      this.applyFromCookies(authMetaCookie().value, authTokenCookie().value)
     },
     clearLocal() {
       this.id = null
       this.email = null
       this.fullName = null
       this.roles = []
+      this.roleLabels = []
       this.accessToken = null
-      metaCookie().value = { id: null, email: null, fullName: null, roles: [] }
-      tokenCookie().value = null
+      authMetaCookie().value = null
+      authTokenCookie().value = null
     },
     logout() {
       this.clearLocal()

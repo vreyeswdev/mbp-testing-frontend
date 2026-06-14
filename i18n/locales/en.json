@@ -1,0 +1,27 @@
+{
+  "common": {
+    "appName": "MBP Testing",
+    "save": "Save",
+    "cancel": "Cancel",
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "apply": "Apply",
+    "close": "Close",
+    "open": "Open",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "loading": "Loading…",
+    "noData": "No data",
+    "yes": "Yes",
+    "no": "No",
+    "optional": "Optional",
+    "required": "Required",
+    "emptyDash": "—"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out"
+  }
+}

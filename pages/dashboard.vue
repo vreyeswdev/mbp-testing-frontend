@@ -2,9 +2,10 @@
 import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Dashboard — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('dashboard.title')} — ${t('common.appName')}` })
 
 interface GlobalMetrics {
   activeTestRequests: number
@@ -57,7 +58,7 @@ async function loadGlobal() {
   try {
     global.value = await api.get<GlobalMetrics>('/metrics/global')
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar métricas globales'
+    error.value = e?.data?.message || t('dashboard.errors.global')
   }
 }
 
@@ -66,7 +67,7 @@ async function loadSpecialist() {
   try {
     specialist.value = await api.get<SpecialistMetrics>(`/metrics/specialists/${auth.id}`)
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar métricas del especialista'
+    error.value = e?.data?.message || t('dashboard.errors.specialist')
   }
 }
 
@@ -106,8 +107,8 @@ onMounted(async () => {
 <template>
   <v-container class="py-8" fluid>
     <div class="mb-6">
-      <span class="cyber-subtitle">// telemetry</span>
-      <h1 class="text-h4 cyber-title mt-1">Dashboard</h1>
+      <div class="text-overline text-medium-emphasis">{{ t('dashboard.overline') }}</div>
+      <h1 class="text-h4 font-weight-bold">{{ t('dashboard.title') }}</h1>
     </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
@@ -118,11 +119,11 @@ onMounted(async () => {
 
     <template v-else>
       <section v-if="global" class="mb-8">
-        <h2 class="cyber-title text-h6 mb-3">// global</h2>
+        <h2 class="text-h6 font-weight-medium mb-3">{{ t('dashboard.globalSection') }}</h2>
         <v-row>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="TestRequests activas"
+              :title="t('dashboard.metrics.activeRequests')"
               :value="global.activeTestRequests"
               color="info"
               icon="mdi-clipboard-clock"
@@ -130,7 +131,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Completadas"
+              :title="t('dashboard.metrics.completedRequests')"
               :value="global.completedTestRequests"
               color="success"
               icon="mdi-check-circle"
@@ -138,7 +139,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Canceladas"
+              :title="t('dashboard.metrics.cancelledRequests')"
               :value="global.cancelledTestRequests"
               color="red"
               icon="mdi-close-circle"
@@ -146,7 +147,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Cards en marcha"
+              :title="t('dashboard.metrics.cardsInProgress')"
               :value="global.testCardsInProgress"
               color="amber"
               icon="mdi-play"
@@ -154,7 +155,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Fixes abiertos"
+              :title="t('dashboard.metrics.openFixes')"
               :value="global.openFixes"
               color="red"
               icon="mdi-bug"
@@ -162,7 +163,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Fixes resueltos"
+              :title="t('dashboard.metrics.resolvedFixes')"
               :value="global.resolvedFixes"
               color="success"
               icon="mdi-bug-check"
@@ -170,7 +171,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="6">
             <MetricCard
-              title="Monto aprobado (todas las quotes)"
+              :title="t('dashboard.metrics.approvedAmount')"
               :value="fmtMoney(global.approvedAmount)"
               color="primary"
               icon="mdi-currency-usd"
@@ -180,18 +181,18 @@ onMounted(async () => {
       </section>
 
       <section v-if="specialist" class="mb-8">
-        <h2 class="cyber-title text-h6 mb-3">// mis métricas</h2>
+        <h2 class="text-h6 font-weight-medium mb-3">{{ t('dashboard.mySection') }}</h2>
         <v-row>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="TestRequests asignadas"
+              :title="t('dashboard.metrics.assignedRequests')"
               :value="specialist.assignedTestRequests"
               icon="mdi-clipboard-account"
             />
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Cards en marcha"
+              :title="t('dashboard.metrics.cardsInProgress')"
               :value="specialist.cardsInProgress"
               color="amber"
               icon="mdi-play"
@@ -199,7 +200,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Cards completadas"
+              :title="t('dashboard.metrics.completedCards')"
               :value="specialist.cardsCompletedAllTime"
               color="success"
               icon="mdi-check"
@@ -207,22 +208,22 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Ciclo promedio"
+              :title="t('dashboard.metrics.avgCycle')"
               :value="`${specialist.avgCardCycleHours.toFixed(1)} h`"
-              hint="por card finalizada"
+              :hint="t('dashboard.metrics.avgCycleHint')"
               icon="mdi-timer-sand"
             />
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Fixes asignados"
+              :title="t('dashboard.metrics.assignedFixes')"
               :value="specialist.fixesAssigned"
               icon="mdi-bug"
             />
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Fixes abiertos"
+              :title="t('dashboard.metrics.openFixesShort')"
               :value="specialist.fixesOpen"
               color="red"
               icon="mdi-bug-outline"
@@ -230,7 +231,7 @@ onMounted(async () => {
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <MetricCard
-              title="Fixes resueltos"
+              :title="t('dashboard.metrics.resolvedFixesShort')"
               :value="specialist.fixesResolved"
               color="success"
               icon="mdi-bug-check"
@@ -240,16 +241,16 @@ onMounted(async () => {
       </section>
 
       <section v-if="companies.length">
-        <h2 class="cyber-title text-h6 mb-3">// por compañía</h2>
+        <h2 class="text-h6 font-weight-medium mb-3">{{ t('dashboard.byCompanySection') }}</h2>
         <v-row>
           <v-col v-for="c in companies" :key="c.companiaId" cols="12" md="6">
-            <v-card class="cyber-card">
+            <v-card variant="outlined">
               <v-card-title>{{ c.companiaNombre }}</v-card-title>
               <v-card-text>
-                <v-row dense>
-                  <v-col cols="6"><div class="text-overline">Projects</div><div class="text-h6">{{ c.totalProjects }}</div></v-col>
-                  <v-col cols="6"><div class="text-overline">TestRequests</div><div class="text-h6">{{ c.totalTestRequests }}</div></v-col>
-                  <v-col cols="12"><div class="text-overline">Monto aprobado</div><div class="text-h6">{{ fmtMoney(c.totalApprovedAmount) }}</div></v-col>
+                <v-row no-gutters>
+                  <v-col cols="6"><div class="text-overline">{{ t('dashboard.company.projects') }}</div><div class="text-h6">{{ c.totalProjects }}</div></v-col>
+                  <v-col cols="6"><div class="text-overline">{{ t('dashboard.company.requests') }}</div><div class="text-h6">{{ c.totalTestRequests }}</div></v-col>
+                  <v-col cols="12"><div class="text-overline">{{ t('dashboard.company.approvedAmount') }}</div><div class="text-h6">{{ fmtMoney(c.totalApprovedAmount) }}</div></v-col>
                 </v-row>
               </v-card-text>
             </v-card>
@@ -258,7 +259,7 @@ onMounted(async () => {
       </section>
 
       <div v-if="!global && !specialist && !companies.length" class="text-center text-medium-emphasis pa-8">
-        No hay métricas para mostrar para tu rol.
+        {{ t('dashboard.empty') }}
       </div>
     </template>
   </v-container>

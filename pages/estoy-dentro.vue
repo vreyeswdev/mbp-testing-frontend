@@ -2,7 +2,10 @@
 import { useAuthStore } from '~/stores/auth'
 import { useApi } from '~/composables/useApi'
 
-useHead({ title: 'Estoy dentro — MBP Testing' })
+definePageMeta({ layout: 'console' })
+
+const { t } = useI18n()
+useHead({ title: () => `${t('profile.title')} — ${t('common.appName')}` })
 
 const auth = useAuthStore()
 const api = useApi()
@@ -16,7 +19,7 @@ onMounted(async () => {
     const res = await api.get<{ message: string }>('/hello')
     message.value = res.message
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar el mensaje'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -24,42 +27,41 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-container class="py-12">
-    <v-row justify="center">
-      <v-col cols="12" md="8" lg="6">
-        <v-card class="cyber-card cyber-card-glow pa-6">
-          <div class="text-center mb-4">
-            <v-avatar color="success" variant="tonal" size="72" class="mb-3">
-              <v-icon size="40" color="success">mdi-shield-check</v-icon>
-            </v-avatar>
-            <span class="cyber-subtitle">// session active</span>
-            <h1 class="text-h4 cyber-title mt-1">Estás dentro</h1>
-            <p class="text-body-2 text-medium-emphasis mt-2">
-              Acceso autorizado al portal QA.
-            </p>
-          </div>
+  <v-container class="py-8" max-width="1080">
+    <div class="mb-6">
+      <div class="text-overline text-medium-emphasis">{{ t('profile.overline') }}</div>
+      <h1 class="text-h4 font-weight-bold">{{ t('profile.title') }}</h1>
+    </div>
 
-          <v-divider class="my-4" />
-
+    <v-row>
+      <v-col cols="12" md="7">
+        <v-card variant="outlined">
+          <v-card-title class="text-subtitle-1 font-weight-medium">{{ t('profile.sessionData') }}</v-card-title>
+          <v-divider />
           <v-list density="comfortable">
-            <v-list-item prepend-icon="mdi-account">
-              <v-list-item-title>Nombre</v-list-item-title>
-              <v-list-item-subtitle>{{ auth.fullName }}</v-list-item-subtitle>
+            <v-list-item prepend-icon="mdi-account-outline">
+              <v-list-item-title>{{ t('common.fullName') }}</v-list-item-title>
+              <v-list-item-subtitle>{{ auth.fullName || t('common.emptyDash') }}</v-list-item-subtitle>
             </v-list-item>
-            <v-list-item prepend-icon="mdi-email">
-              <v-list-item-title>Email</v-list-item-title>
-              <v-list-item-subtitle>{{ auth.email }}</v-list-item-subtitle>
+            <v-list-item prepend-icon="mdi-email-outline">
+              <v-list-item-title>{{ t('common.email') }}</v-list-item-title>
+              <v-list-item-subtitle>{{ auth.email || t('common.emptyDash') }}</v-list-item-subtitle>
             </v-list-item>
-            <v-list-item prepend-icon="mdi-shield-account">
-              <v-list-item-title>Roles</v-list-item-title>
-              <v-list-item-subtitle>{{ auth.roles.join(', ') || '—' }}</v-list-item-subtitle>
+            <v-list-item prepend-icon="mdi-shield-account-outline">
+              <v-list-item-title>{{ t('auth.roles') }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ (auth.roleLabels.length ? auth.roleLabels : auth.roles).join(', ') || t('common.emptyDash') }}
+              </v-list-item-subtitle>
             </v-list-item>
           </v-list>
+        </v-card>
+      </v-col>
 
-          <v-divider class="my-4" />
-
-          <div class="mb-4">
-            <p class="text-overline mb-2">Respuesta del backend (GET /api/hello)</p>
+      <v-col cols="12" md="5">
+        <v-card variant="outlined">
+          <v-card-title class="text-subtitle-1 font-weight-medium">{{ t('profile.backendStatus') }}</v-card-title>
+          <v-divider />
+          <v-card-text>
             <v-skeleton-loader v-if="loading" type="text" />
             <v-alert v-else-if="error" type="error" variant="tonal" density="compact">
               {{ error }}
@@ -67,11 +69,7 @@ onMounted(async () => {
             <v-alert v-else type="success" variant="tonal" density="compact">
               {{ message }}
             </v-alert>
-          </div>
-
-          <v-btn block color="primary" variant="tonal" to="/bienvenida" prepend-icon="mdi-arrow-left">
-            Volver a bienvenida
-          </v-btn>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>

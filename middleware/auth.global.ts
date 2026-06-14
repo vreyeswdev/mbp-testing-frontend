@@ -1,4 +1,4 @@
-import { useAuthStore } from '~/stores/auth'
+import { useAuthStore, authMetaCookie, authTokenCookie } from '~/stores/auth'
 import type { Role } from '~/stores/auth'
 
 const PUBLIC_PATHS = ['/login', '/bienvenida', '/solicitar']
@@ -10,7 +10,9 @@ function isPublic(path: string): boolean {
 
 export default defineNuxtRouteMiddleware((to) => {
   const auth = useAuthStore()
-  if (import.meta.client) auth.loadFromStorage()
+  // Leemos las cookies en el contexto del middleware (válido en SSR y cliente)
+  // y aplicamos al store, en vez de llamar useCookie dentro de la acción Pinia.
+  auth.applyFromCookies(authMetaCookie().value, authTokenCookie().value)
 
   if (isPublic(to.path)) return
   if (!auth.isAuthenticated) return navigateTo('/login')

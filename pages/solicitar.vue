@@ -1,5 +1,6 @@
 <script setup lang="ts">
-useHead({ title: 'Solicitar servicio de QA — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('contact.title')} — ${t('common.appName')}` })
 
 interface PublicSubmissionAck {
   id: string
@@ -23,8 +24,8 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const ack = ref<PublicSubmissionAck | null>(null)
 
-const requiredRule = (v: string) => !!v?.trim() || 'Campo requerido'
-const emailRule = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || 'Email inválido'
+const requiredRule = (v: string) => !!v?.trim() || t('common.required')
+const emailRule = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || t('auth.emailInvalid')
 
 async function submit() {
   error.value = null
@@ -38,7 +39,7 @@ async function submit() {
     })
     ack.value = res
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible enviar la solicitud. Intenta de nuevo.'
+    error.value = e?.data?.message || t('contact.errorSend')
   } finally {
     loading.value = false
   }
@@ -47,23 +48,22 @@ async function submit() {
 
 <template>
   <v-container class="py-10" max-width="900">
-    <div v-if="!ack" class="mb-8 text-center">
-      <span class="cyber-subtitle">// engagement-intake //</span>
-      <h1 class="text-h3 cyber-title mt-2 cyber-glow-text">Solicitar servicio de QA</h1>
-      <p class="text-body-1 mt-3 text-medium-emphasis" style="max-width: 640px; margin: 0 auto;">
-        Cuéntanos qué necesitas testear. Un especialista revisará tu solicitud,
-        definirá el alcance y te enviará un presupuesto en horas-persona.
+    <div v-if="!ack" class="mb-8">
+      <div class="text-overline text-primary mb-1">{{ t('contact.overline') }}</div>
+      <h1 class="text-h4 font-weight-bold">{{ t('contact.title') }}</h1>
+      <p class="text-body-1 text-medium-emphasis mt-2" style="max-width: 720px;">
+        {{ t('contact.subtitle') }}
       </p>
     </div>
 
-    <v-card v-if="!ack" class="cyber-card pa-6 pa-md-8">
+    <v-card v-if="!ack" variant="outlined" class="pa-6 pa-md-8">
       <v-form ref="formRef" @submit.prevent="submit">
-        <div class="cyber-subtitle mb-2">// 01 — contacto</div>
+        <div class="text-subtitle-1 font-weight-medium mb-3">{{ t('contact.section1') }}</div>
         <v-row>
           <v-col cols="12" md="6">
             <v-text-field
               v-model="form.contactName"
-              label="Nombre completo"
+              :label="t('contact.contactName')"
               prepend-inner-icon="mdi-account-outline"
               :rules="[requiredRule]"
               autocomplete="name"
@@ -72,32 +72,32 @@ async function submit() {
           <v-col cols="12" md="6">
             <v-text-field
               v-model="form.contactEmail"
-              label="Email corporativo"
+              :label="t('contact.contactEmail')"
               type="email"
               prepend-inner-icon="mdi-email-outline"
               :rules="[requiredRule, emailRule]"
               autocomplete="email"
-              hint="Será tu usuario al aceptar el presupuesto"
+              :hint="t('contact.contactEmailHint')"
               persistent-hint
             />
           </v-col>
           <v-col cols="12" md="6">
             <v-text-field
               v-model="form.contactPhone"
-              label="Teléfono (opcional)"
+              :label="t('contact.contactPhone')"
               prepend-inner-icon="mdi-phone-outline"
               autocomplete="tel"
             />
           </v-col>
         </v-row>
 
-        <div class="cyber-divider" />
-        <div class="cyber-subtitle mb-2">// 02 — proyecto</div>
+        <v-divider class="my-6" />
+        <div class="text-subtitle-1 font-weight-medium mb-3">{{ t('contact.section2') }}</div>
         <v-row>
           <v-col cols="12">
             <v-text-field
               v-model="form.projectName"
-              label="Nombre del proyecto o producto"
+              :label="t('contact.projectName')"
               prepend-inner-icon="mdi-rocket-launch-outline"
               :rules="[requiredRule]"
             />
@@ -105,27 +105,27 @@ async function submit() {
           <v-col cols="12">
             <v-textarea
               v-model="form.projectDescription"
-              label="Descripción breve del proyecto"
+              :label="t('contact.projectDescription')"
               prepend-inner-icon="mdi-text-box-outline"
               rows="3"
               auto-grow
-              hint="Sector, tecnologías, estado actual"
+              :hint="t('contact.projectDescriptionHint')"
               persistent-hint
             />
           </v-col>
         </v-row>
 
-        <div class="cyber-divider" />
-        <div class="cyber-subtitle mb-2">// 03 — necesidad de QA</div>
+        <v-divider class="my-6" />
+        <div class="text-subtitle-1 font-weight-medium mb-3">{{ t('contact.section3') }}</div>
         <v-row>
           <v-col cols="12">
             <v-textarea
               v-model="form.scopeNotes"
-              label="¿Qué necesitas testear? Módulos, funcionalidades, riesgos"
+              :label="t('contact.scopeNotes')"
               prepend-inner-icon="mdi-bug-check-outline"
               rows="5"
               auto-grow
-              hint="Cuanto más detalle, más preciso el presupuesto"
+              :hint="t('contact.scopeNotesHint')"
               persistent-hint
             />
           </v-col>
@@ -136,7 +136,7 @@ async function submit() {
         </v-alert>
 
         <div class="d-flex justify-end mt-6 ga-3">
-          <v-btn to="/" variant="text">Volver</v-btn>
+          <v-btn to="/" variant="text">{{ t('common.back') }}</v-btn>
           <v-btn
             type="submit"
             color="primary"
@@ -144,25 +144,23 @@ async function submit() {
             :loading="loading"
             prepend-icon="mdi-send"
           >
-            Enviar solicitud
+            {{ t('contact.send') }}
           </v-btn>
         </div>
       </v-form>
     </v-card>
 
-    <v-card v-else class="cyber-card cyber-card-glow pa-8 text-center">
-      <v-icon size="80" color="success" class="mb-4">mdi-check-decagram</v-icon>
-      <h2 class="cyber-title text-h4 mb-3">Recibimos tu solicitud</h2>
-      <p class="text-body-1 mb-6">
-        Te contactaremos a <span class="cyber-mono cyber-link">{{ form.contactEmail }}</span>
-        cuando el especialista termine de revisar el alcance.
+    <v-card v-else variant="tonal" color="success" class="pa-8 text-center">
+      <v-icon size="72" color="success" class="mb-4">mdi-check-decagram</v-icon>
+      <h2 class="text-h4 font-weight-bold mb-3">{{ t('contact.success.title') }}</h2>
+      <p class="text-body-1 mb-4">
+        {{ t('contact.success.body', { email: form.contactEmail }) }}
       </p>
-      <div class="cyber-tag mb-6">
-        <span>tracking id</span>
-        <span class="cyber-mono">{{ ack.id }}</span>
-      </div>
+      <v-chip variant="outlined" class="font-mono mb-6">
+        {{ t('contact.success.trackingId', { id: ack.id }) }}
+      </v-chip>
       <div>
-        <v-btn to="/" variant="outlined" color="primary">Volver al inicio</v-btn>
+        <v-btn to="/" variant="flat" color="primary">{{ t('contact.success.back') }}</v-btn>
       </div>
     </v-card>
   </v-container>

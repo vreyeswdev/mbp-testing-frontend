@@ -3,14 +3,16 @@ import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import { useCatalog } from '~/composables/useCatalog'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Solicitud — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('common.appName')}` })
 
 interface QuoteItemDto {
   id: string
   quoteId: string
   itemType: string
+  itemTypeLabel: string
   description: string
   hours: number
   hourlyRate: number
@@ -22,6 +24,7 @@ interface QuoteDto {
   id: string
   testRequestId: string
   status: string
+  statusLabel: string
   currency: string
   notes: string | null
   createdById: string
@@ -43,6 +46,7 @@ interface TestRequestDto {
   title: string
   description: string | null
   status: string
+  statusLabel: string
   assignedSpecialistId: string | null
   assignedSpecialistEmail: string | null
   requestedById: string
@@ -53,11 +57,27 @@ interface TestRequestDto {
 interface HistoryEntry {
   id: string
   fromStatus: string | null
+  fromStatusLabel: string | null
   toStatus: string
+  toStatusLabel: string
   changedById: string
   changedByEmail: string
   comment: string | null
   changedAt: string
+}
+
+const TEST_REQUEST_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: 'Solicitada',
+  SCOPING: 'Relevamiento',
+  SPECIALIST_ASSIGNED: 'Especialista asignado',
+  CONFIRMED: 'Confirmada',
+  IN_PROGRESS: 'En progreso',
+  BLOCKED: 'Bloqueada',
+  COMPLETED: 'Completada',
+  CANCELLED: 'Cancelada'
+}
+function statusLabel(code: string) {
+  return TEST_REQUEST_STATUS_LABELS[code] ?? code
 }
 
 const ALLOWED_NEXT: Record<string, string[]> = {
@@ -86,9 +106,19 @@ const transitionDialog = ref(false)
 const transitionTo = ref('')
 const transitionComment = ref('')
 
+interface SpecialistOption {
+  id: string
+  email: string
+  fullName: string
+  roles: string[]
+  enabled: boolean
+}
+
 const assignDialog = ref(false)
 const specialistInput = ref('')
 const assignComment = ref('')
+const specialists = ref<SpecialistOption[]>([])
+const loadingSpecialists = ref(false)
 
 const quotes = ref<QuoteDto[]>([])
 const activeQuote = computed<QuoteDto | null>(() => {
@@ -123,6 +153,23 @@ async function load() {
     error.value = e?.data?.message || 'No fue posible cargar'
   } finally {
     loading.value = false
+  }
+}
+
+async function openAssignDialog() {
+  assignDialog.value = true
+  specialistInput.value = ''
+  assignComment.value = ''
+  if (specialists.value.length === 0) {
+    loadingSpecialists.value = true
+    try {
+      const list = await api.get<SpecialistOption[]>('/admin/users')
+      specialists.value = list.filter(u => u.roles.includes('ROLE_ESPECIALISTA') && u.enabled)
+    } catch (e: any) {
+      error.value = e?.data?.message || 'No fue posible cargar los especialistas'
+    } finally {
+      loadingSpecialists.value = false
+    }
   }
 }
 
@@ -165,7 +212,7 @@ async function saveItem() {
     itemDialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible guardar el item'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -175,7 +222,7 @@ async function deleteItem(item: QuoteItemDto) {
     await api.del(`/quotes/${activeQuote.value.id}/items/${item.id}`)
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible eliminar el item'
+    error.value = e?.data?.message || t('common.errorDelete')
   }
 }
 
@@ -185,7 +232,7 @@ async function submitQuote() {
     await api.post(`/quotes/${activeQuote.value.id}/submit`, {})
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible enviar la quote'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -195,7 +242,7 @@ async function approveQuote() {
     await api.post(`/quotes/${activeQuote.value.id}/approve`, {})
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible aprobar'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -207,7 +254,7 @@ async function rejectQuote() {
     rejectReason.value = ''
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible rechazar'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -245,7 +292,7 @@ async function applyTransition() {
     transitionDialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'Transición rechazada'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -260,7 +307,7 @@ async function assign() {
     assignComment.value = ''
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible asignar'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -288,7 +335,7 @@ onMounted(load)
   <v-container class="py-8">
     <div class="d-flex align-center mb-4">
       <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/requests">
-        Volver a solicitudes
+        {{ t('requests.detail.back') }}
       </v-btn>
       <v-spacer />
       <v-btn
@@ -298,7 +345,7 @@ onMounted(load)
         prepend-icon="mdi-view-column"
         :to="`/requests/${id}/board`"
       >
-        Ver tablero
+        {{ t('requests.detail.viewBoard') }}
       </v-btn>
     </div>
 
@@ -309,41 +356,41 @@ onMounted(load)
     <v-skeleton-loader v-if="loading && !request" type="card" />
 
     <template v-else-if="request">
-      <v-card class="mb-6">
+      <v-card variant="outlined" class="mb-6">
         <v-card-title class="d-flex align-center">
           {{ request.title }}
           <v-spacer />
-          <v-chip :color="statusColor(request.status)" variant="tonal">{{ request.status.replace(/_/g, ' ') }}</v-chip>
+          <v-chip :color="statusColor(request.status)" variant="tonal">{{ request.statusLabel }}</v-chip>
         </v-card-title>
         <v-card-subtitle>{{ request.projectName }} · {{ request.testTypeCode }}<span v-if="request.environmentCode"> · {{ request.environmentCode }}</span></v-card-subtitle>
         <v-card-text>
           <div v-if="request.description" class="mb-3">{{ request.description }}</div>
           <v-row>
             <v-col cols="12" md="4">
-              <div class="text-overline">Solicitada por</div>
+              <div class="text-overline">{{ t('requests.detail.requestedBy') }}</div>
               <div>{{ request.requestedByEmail }}</div>
             </v-col>
             <v-col cols="12" md="4">
-              <div class="text-overline">Especialista</div>
-              <div>{{ request.assignedSpecialistEmail || '—' }}</div>
+              <div class="text-overline">{{ t('requests.detail.specialist') }}</div>
+              <div>{{ request.assignedSpecialistEmail || t('common.emptyDash') }}</div>
             </v-col>
             <v-col cols="12" md="4">
-              <div class="text-overline">Creada</div>
+              <div class="text-overline">{{ t('requests.detail.createdAt') }}</div>
               <div>{{ formatDate(request.createdAt) }}</div>
             </v-col>
           </v-row>
         </v-card-text>
         <v-card-actions class="flex-wrap pa-4">
           <v-btn
-            v-for="t in allowedNext"
-            :key="t"
-            :color="statusColor(t)"
+            v-for="nextS in allowedNext"
+            :key="nextS"
+            :color="statusColor(nextS)"
             variant="tonal"
             size="small"
             class="me-2 mb-2"
-            @click="openTransition(t)"
+            @click="openTransition(nextS)"
           >
-            → {{ t.replace(/_/g, ' ') }}
+            → {{ statusLabel(nextS) }}
           </v-btn>
           <v-btn
             v-if="auth.isAdmin && request.status === 'SCOPING'"
@@ -352,42 +399,43 @@ onMounted(load)
             size="small"
             class="me-2 mb-2"
             prepend-icon="mdi-account-arrow-right"
-            @click="assignDialog = true"
+            @click="openAssignDialog"
           >
-            Asignar especialista
+            {{ t('requests.detail.assignSpecialist') }}
           </v-btn>
         </v-card-actions>
       </v-card>
 
-      <v-card class="mb-6">
+      <v-card variant="outlined" class="mb-6">
         <v-card-title class="d-flex align-center">
-          Presupuesto
+          {{ t('requests.detail.quote') }}
           <v-spacer />
           <v-chip v-if="activeQuote" :color="quoteStatusColor(activeQuote.status)" variant="tonal">
-            {{ activeQuote.status }}
+            {{ activeQuote.statusLabel }}
           </v-chip>
         </v-card-title>
         <v-card-text v-if="!activeQuote">
-          <div class="text-medium-emphasis">No hay una cotización activa.</div>
+          <div class="text-medium-emphasis">{{ t('requests.detail.noActiveQuote') }}</div>
           <v-btn class="mt-3" color="primary" size="small" prepend-icon="mdi-plus" @click="createQuote">
-            Crear borrador
+            {{ t('requests.detail.createDraft') }}
           </v-btn>
         </v-card-text>
         <template v-else>
           <v-card-text>
             <v-data-table
               :headers="[
-                { title: 'Tipo', key: 'itemType' },
-                { title: 'Descripción', key: 'description' },
-                { title: 'Horas', key: 'hours', align: 'end' },
-                { title: 'Tarifa/h', key: 'hourlyRate', align: 'end' },
-                { title: 'Subtotal', key: 'amount', align: 'end' },
+                { title: t('common.type'), key: 'itemType' },
+                { title: t('common.description'), key: 'description' },
+                { title: t('common.hours'), key: 'hours', align: 'end' },
+                { title: t('common.hourlyRate'), key: 'hourlyRate', align: 'end' },
+                { title: t('common.subtotal'), key: 'amount', align: 'end' },
                 { title: '', key: 'actions', sortable: false, align: 'end' }
               ]"
               :items="activeQuote.items"
               density="compact"
               hide-default-footer
             >
+              <template #item.itemType="{ item }">{{ item.itemTypeLabel || item.itemType }}</template>
               <template #item.hourlyRate="{ value }">{{ fmtMoney(value, activeQuote.currency) }}</template>
               <template #item.amount="{ value }">{{ fmtMoney(value, activeQuote.currency) }}</template>
               <template #item.actions="{ item }">
@@ -410,9 +458,9 @@ onMounted(load)
             </v-data-table>
             <div class="d-flex justify-end mt-3">
               <div class="text-right">
-                <div class="text-overline">Total horas</div>
+                <div class="text-overline">{{ t('requests.detail.totalHours') }}</div>
                 <div class="text-h6">{{ activeQuote.totalHours }}</div>
-                <div class="text-overline mt-2">Total</div>
+                <div class="text-overline mt-2">{{ t('common.total') }}</div>
                 <div class="text-h6">{{ fmtMoney(activeQuote.totalAmount, activeQuote.currency) }}</div>
               </div>
             </div>
@@ -427,7 +475,7 @@ onMounted(load)
               class="me-2 mb-2"
               @click="openNewItem"
             >
-              Agregar item
+              {{ t('requests.detail.addItem') }}
             </v-btn>
             <v-btn
               v-if="activeQuote.status === 'DRAFT'"
@@ -439,7 +487,7 @@ onMounted(load)
               :disabled="activeQuote.items.length === 0"
               @click="submitQuote"
             >
-              Enviar al cliente
+              {{ t('requests.detail.sendToClient') }}
             </v-btn>
             <v-btn
               v-if="activeQuote.status === 'SUBMITTED'"
@@ -450,7 +498,7 @@ onMounted(load)
               class="me-2 mb-2"
               @click="approveQuote"
             >
-              Aprobar
+              {{ t('requests.detail.approve') }}
             </v-btn>
             <v-btn
               v-if="activeQuote.status === 'SUBMITTED'"
@@ -461,21 +509,21 @@ onMounted(load)
               class="me-2 mb-2"
               @click="rejectDialog = true"
             >
-              Rechazar
+              {{ t('requests.detail.reject') }}
             </v-btn>
           </v-card-actions>
         </template>
       </v-card>
 
-      <v-card>
-        <v-card-title>Historial</v-card-title>
+      <v-card variant="outlined">
+        <v-card-title>{{ t('requests.detail.history') }}</v-card-title>
         <v-list density="comfortable">
           <v-list-item v-for="h in history" :key="h.id">
             <template #prepend>
               <v-icon>mdi-arrow-right-bold</v-icon>
             </template>
             <v-list-item-title>
-              <span v-if="h.fromStatus">{{ h.fromStatus }} → </span>{{ h.toStatus }}
+              <span v-if="h.fromStatus">{{ h.fromStatusLabel || h.fromStatus }} → </span>{{ h.toStatusLabel || h.toStatus }}
             </v-list-item-title>
             <v-list-item-subtitle>
               {{ formatDate(h.changedAt) }} · {{ h.changedByEmail }}
@@ -488,73 +536,82 @@ onMounted(load)
 
     <v-dialog v-model="transitionDialog" max-width="500">
       <v-card>
-        <v-card-title>Cambiar a {{ transitionTo.replace(/_/g, ' ') }}</v-card-title>
+        <v-card-title>{{ t('requests.detail.transitionTo', { label: statusLabel(transitionTo) }) }}</v-card-title>
         <v-card-text>
-          <v-textarea v-model="transitionComment" label="Comentario (opcional)" rows="3" />
+          <v-textarea v-model="transitionComment" :label="t('common.commentOptional')" rows="3" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="transitionDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="applyTransition">Aplicar</v-btn>
+          <v-btn variant="text" @click="transitionDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" @click="applyTransition">{{ t('common.apply') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="assignDialog" max-width="500">
+    <v-dialog v-model="assignDialog" max-width="540">
       <v-card>
-        <v-card-title>Asignar especialista</v-card-title>
+        <v-card-title>{{ t('requests.detail.assignSpecialist') }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="specialistInput" label="UUID del especialista" />
-          <v-textarea v-model="assignComment" label="Comentario (opcional)" rows="2" />
+          <v-select
+            v-model="specialistInput"
+            :items="specialists"
+            :loading="loadingSpecialists"
+            :item-title="(u: SpecialistOption) => u.fullName ? `${u.fullName} (${u.email})` : u.email"
+            item-value="id"
+            :label="t('common.specialist')"
+            prepend-inner-icon="mdi-account-search-outline"
+            :no-data-text="t('common.noData')"
+          />
+          <v-textarea v-model="assignComment" :label="t('common.commentOptional')" rows="2" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="assignDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :disabled="!specialistInput" @click="assign">Asignar</v-btn>
+          <v-btn variant="text" @click="assignDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :disabled="!specialistInput" @click="assign">{{ t('requests.detail.assignSpecialist') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="itemDialog" max-width="560">
       <v-card>
-        <v-card-title>{{ editingItemId ? 'Editar item' : 'Nuevo item' }}</v-card-title>
+        <v-card-title>{{ editingItemId ? t('requests.detail.editItem') : t('requests.detail.newItem') }}</v-card-title>
         <v-card-text>
           <v-select
             v-model="itemForm.itemType"
             :items="catalog.state.value.quoteItemTypes"
             item-title="label"
             item-value="code"
-            label="Tipo"
+            :label="t('common.type')"
           />
-          <v-text-field v-model="itemForm.description" label="Descripción" />
+          <v-text-field v-model="itemForm.description" :label="t('common.description')" />
           <v-row>
             <v-col cols="6">
-              <v-text-field v-model.number="itemForm.hours" label="Horas" type="number" step="0.25" />
+              <v-text-field v-model.number="itemForm.hours" :label="t('common.hours')" type="number" step="0.25" />
             </v-col>
             <v-col cols="6">
-              <v-text-field v-model.number="itemForm.hourlyRate" label="Tarifa por hora" type="number" />
+              <v-text-field v-model.number="itemForm.hourlyRate" :label="t('common.hourlyRate')" type="number" />
             </v-col>
           </v-row>
           <v-text-field v-model.number="itemForm.position" label="Posición" type="number" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="itemDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="saveItem">Guardar</v-btn>
+          <v-btn variant="text" @click="itemDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" @click="saveItem">{{ t('common.save') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="rejectDialog" max-width="500">
       <v-card>
-        <v-card-title>Rechazar cotización</v-card-title>
+        <v-card-title>{{ t('requests.detail.rejectQuote') }}</v-card-title>
         <v-card-text>
-          <v-textarea v-model="rejectReason" label="Motivo (opcional)" rows="3" />
+          <v-textarea v-model="rejectReason" :label="t('common.reasonOptional')" rows="3" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="rejectDialog = false">Cancelar</v-btn>
-          <v-btn color="error" @click="rejectQuote">Rechazar</v-btn>
+          <v-btn variant="text" @click="rejectDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="error" @click="rejectQuote">{{ t('requests.detail.reject') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

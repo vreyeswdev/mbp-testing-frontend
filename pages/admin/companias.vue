@@ -3,10 +3,12 @@ import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   ssr: false,
+  layout: 'console',
   requiresRole: 'ROLE_ADMIN'
 })
 
-useHead({ title: 'Compañías — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `${t('admin.companies.title')} — ${t('common.appName')}` })
 
 interface PaisDto {
   id: string
@@ -51,7 +53,7 @@ async function cargar() {
     companias.value = cs
     paises.value = ps
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar las compañías'
+    error.value = e?.data?.message || t('admin.companies.errorLoad')
   } finally {
     loading.value = false
   }
@@ -79,7 +81,7 @@ async function guardar() {
     dialog.value = false
     await cargar()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible crear la compañía'
+    error.value = e?.data?.message || t('admin.companies.errorCreate')
   } finally {
     saving.value = false
   }
@@ -87,22 +89,25 @@ async function guardar() {
 
 onMounted(cargar)
 
-const headers = [
-  { title: 'Nombre', key: 'nombre' },
-  { title: 'País', key: 'paisNombre' },
-  { title: 'ID fiscal', key: 'identificadorFiscal' },
-  { title: 'Activa', key: 'activo' },
+const headers = computed(() => [
+  { title: t('admin.companies.headers.name'), key: 'nombre' },
+  { title: t('admin.companies.headers.country'), key: 'paisNombre' },
+  { title: t('admin.companies.headers.fiscalId'), key: 'identificadorFiscal' },
+  { title: t('admin.companies.headers.active'), key: 'activo' },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
-]
+])
 </script>
 
 <template>
   <v-container class="py-8">
-    <div class="d-flex align-center mb-4">
-      <h1 class="text-h5 font-weight-medium">Compañías</h1>
+    <div class="d-flex align-center mb-6">
+      <div>
+        <div class="text-overline text-medium-emphasis">{{ t('admin.companies.overline') }}</div>
+        <h1 class="text-h4 font-weight-bold">{{ t('admin.companies.title') }}</h1>
+      </div>
       <v-spacer />
       <v-btn color="primary" prepend-icon="mdi-plus" @click="abrirNueva">
-        Nueva compañía
+        {{ t('admin.companies.new') }}
       </v-btn>
     </div>
 
@@ -110,7 +115,7 @@ const headers = [
       {{ error }}
     </v-alert>
 
-    <v-card>
+    <v-card variant="outlined">
       <v-data-table
         :headers="headers"
         :items="companias"
@@ -120,7 +125,7 @@ const headers = [
       >
         <template #item.activo="{ value }">
           <v-chip :color="value ? 'success' : 'grey'" size="small" variant="tonal">
-            {{ value ? 'Sí' : 'No' }}
+            {{ value ? t('common.yes') : t('common.no') }}
           </v-chip>
         </template>
         <template #item.actions="{ item }">
@@ -136,31 +141,31 @@ const headers = [
 
     <v-dialog v-model="dialog" max-width="520">
       <v-card>
-        <v-card-title>Nueva compañía</v-card-title>
+        <v-card-title>{{ t('admin.companies.newDialog') }}</v-card-title>
         <v-card-text>
           <v-form @submit.prevent="guardar">
-            <v-text-field v-model="form.nombre" label="Nombre" required />
+            <v-text-field v-model="form.nombre" :label="t('common.name')" required />
             <v-select
               v-model="form.paisId"
               :items="paises"
               item-title="nombre"
               item-value="id"
-              label="País"
+              :label="t('common.country')"
               required
             />
             <v-text-field
               v-model="form.identificadorFiscal"
-              label="Identificador fiscal"
-              hint="Opcional"
+              :label="t('admin.companies.fiscalId')"
+              :hint="t('common.optional')"
               persistent-hint
             />
-            <v-switch v-model="form.activo" label="Activa" color="primary" />
+            <v-switch v-model="form.activo" :label="t('admin.companies.active')" color="primary" />
           </v-form>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :loading="saving" @click="guardar">Crear</v-btn>
+          <v-btn variant="text" @click="dialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :loading="saving" @click="guardar">{{ t('common.create') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

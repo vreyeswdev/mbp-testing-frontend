@@ -4,6 +4,7 @@ import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   ssr: false,
+  layout: 'console',
   requiresRole: ['ROLE_ADMIN', 'ROLE_ESPECIALISTA']
 })
 
@@ -19,13 +20,16 @@ interface ScopeFeature {
   featureDescription: string | null
   acceptanceCriteria: string | null
   priority: Priority
+  priorityLabel: string
   severity: Severity
+  severityLabel: string
   position: number
 }
 
 interface BudgetItem {
   id: string
   itemType: ItemType
+  itemTypeLabel: string
   description: string
   hours: number
   hourlyRate: number
@@ -42,6 +46,7 @@ interface SubmissionDto {
   projectDescription: string | null
   scopeNotes: string | null
   status: SubmissionStatus
+  statusLabel: string
   adminNotes: string | null
   budgetCurrency: string | null
   acceptedCompanyName: string | null
@@ -64,7 +69,7 @@ interface SubmissionDto {
 interface PaisDto { id: string; nombre: string; codigoIso: string }
 interface TestTypeDto { id: string; code: string; name: string }
 interface EnvironmentDto { id: string; code: string; name: string }
-interface UserSummary { id: string; email: string; fullName: string; roles: string[]; enabled: boolean }
+interface UserSummary { id: string; email: string; fullName: string; roles: string[]; roleLabels: string[]; enabled: boolean }
 interface AcceptResult {
   submissionId: string
   userEmail: string
@@ -104,7 +109,8 @@ const acceptForm = reactive({
 })
 const rejectForm = reactive({ reason: '' })
 
-useHead({ title: () => sub.value ? `Submission ${sub.value.projectName}` : 'Submission — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => sub.value ? `${sub.value.projectName} — ${t('common.appName')}` : `${t('admin.submissions.title')} — ${t('common.appName')}` })
 
 async function load() {
   loading.value = true
@@ -124,7 +130,7 @@ async function load() {
 async function loadCatalogs() {
   try {
     const [ps, tts, envs] = await Promise.all([
-      api.get<PaisDto[]>('/paises'),
+      api.get<PaisDto[]>('/public/countries'),
       api.get<TestTypeDto[]>('/test-types'),
       api.get<EnvironmentDto[]>('/environments')
     ])
@@ -301,12 +307,12 @@ async function reject() {
 
 // ---------- helpers ----------
 
-const statusMeta: Record<SubmissionStatus, { color: string; label: string }> = {
-  PENDING: { color: 'info', label: 'Nueva' },
-  AWAITING_CLARIFICATION: { color: 'warning', label: 'Scoping' },
-  BUDGETED: { color: 'primary', label: 'Presupuesto enviado' },
-  ACCEPTED: { color: 'success', label: 'Aceptada' },
-  REJECTED: { color: 'error', label: 'Rechazada' }
+const statusColor: Record<SubmissionStatus, string> = {
+  PENDING: 'info',
+  AWAITING_CLARIFICATION: 'warning',
+  BUDGETED: 'primary',
+  ACCEPTED: 'success',
+  REJECTED: 'error'
 }
 
 const isEditable = computed(() => sub.value && sub.value.status !== 'ACCEPTED' && sub.value.status !== 'REJECTED')
@@ -324,7 +330,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
 <template>
   <v-container class="py-8" max-width="1280">
     <v-btn variant="text" to="/admin/submissions" prepend-icon="mdi-arrow-left" class="mb-4">
-      Volver al listado
+      {{ t('admin.submissions.detail.back') }}
     </v-btn>
 
     <div v-if="loading" class="text-center py-12">
@@ -340,53 +346,53 @@ function fmtMoney(n: number, ccy = 'CLP') {
 
     <template v-if="sub">
       <!-- Header -->
-      <v-card class="cyber-card pa-6 mb-6">
+      <v-card variant="outlined" class="pa-6 mb-6">
         <div class="d-flex align-start flex-wrap ga-4">
           <div class="flex-grow-1">
-            <span class="cyber-subtitle">// submission #{{ sub.id.slice(0, 8) }}</span>
-            <h1 class="text-h4 cyber-title mt-1 mb-2">{{ sub.projectName }}</h1>
+            <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.header', { id: sub.id.slice(0, 8) }) }}</span>
+            <h1 class="text-h4 font-weight-bold mb-2">{{ sub.projectName }}</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              {{ sub.projectDescription || 'Sin descripción.' }}
+              {{ sub.projectDescription || t('common.emptyDash') }}
             </p>
           </div>
           <v-chip
-            :color="statusMeta[sub.status].color"
+            :color="statusColor[sub.status]"
             size="large"
             variant="tonal"
-            class="cyber-chip"
+            class=""
           >
-            {{ statusMeta[sub.status].label }}
+            {{ sub.statusLabel || sub.status }}
           </v-chip>
         </div>
 
-        <div class="cyber-divider" />
+        <v-divider class="my-4" />
 
-        <v-row dense>
+        <v-row no-gutters>
           <v-col cols="12" md="4">
-            <div class="cyber-subtitle">// contacto</div>
+            <div class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.contact') }}</div>
             <div class="text-body-2">{{ sub.contactName }}</div>
-            <div class="cyber-mono text-caption">{{ sub.contactEmail }}</div>
-            <div v-if="sub.contactPhone" class="cyber-mono text-caption">{{ sub.contactPhone }}</div>
+            <div class="font-mono text-caption">{{ sub.contactEmail }}</div>
+            <div v-if="sub.contactPhone" class="font-mono text-caption">{{ sub.contactPhone }}</div>
           </v-col>
           <v-col cols="12" md="4">
-            <div class="cyber-subtitle">// fechas</div>
+            <div class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.dates') }}</div>
             <div class="text-caption">
-              Recibida: <span class="cyber-mono">{{ new Date(sub.submittedAt).toLocaleString() }}</span>
+              {{ t('admin.submissions.detail.received') }}: <span class="font-mono">{{ new Date(sub.submittedAt).toLocaleString() }}</span>
             </div>
             <div v-if="sub.decidedAt" class="text-caption">
-              Decidida: <span class="cyber-mono">{{ new Date(sub.decidedAt).toLocaleString() }}</span>
+              {{ t('admin.submissions.detail.decided') }}: <span class="font-mono">{{ new Date(sub.decidedAt).toLocaleString() }}</span>
             </div>
           </v-col>
           <v-col cols="12" md="4">
-            <div class="cyber-subtitle">// totales</div>
-            <div class="cyber-mono">
+            <div class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.totals') }}</div>
+            <div class="font-mono">
               {{ sub.totalBudgetHours }} h • {{ fmtMoney(sub.totalBudgetAmount, sub.budgetCurrency || 'CLP') }}
             </div>
           </v-col>
         </v-row>
 
         <div v-if="sub.scopeNotes" class="mt-4">
-          <div class="cyber-subtitle mb-1">// notas del cliente</div>
+          <div class="text-overline text-medium-emphasis mb-1">{{ t('admin.submissions.detail.clientNotes') }}</div>
           <div class="text-body-2" style="white-space: pre-wrap">{{ sub.scopeNotes }}</div>
         </div>
 
@@ -396,44 +402,44 @@ function fmtMoney(n: number, ccy = 'CLP') {
             color="primary"
             prepend-icon="mdi-clipboard-check-outline"
           >
-            Ver la TestRequest generada
+            {{ t('admin.submissions.detail.viewRequest') }}
           </v-btn>
         </div>
 
         <div v-if="sub.status === 'REJECTED' && sub.rejectionReason" class="mt-4">
           <v-alert type="error" variant="tonal" density="compact">
-            Motivo del rechazo: {{ sub.rejectionReason }}
+            {{ t('admin.submissions.detail.rejectReason', { reason: sub.rejectionReason }) }}
           </v-alert>
         </div>
       </v-card>
 
       <!-- Scope features -->
-      <v-card class="cyber-card pa-6 mb-6">
+      <v-card variant="outlined" class="pa-6 mb-6">
         <div class="d-flex align-center mb-4">
-          <span class="cyber-subtitle">// 01 — scope: módulos y features</span>
+          <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.scopeSection') }}</span>
           <v-spacer />
-          <span class="cyber-mono text-caption">{{ sub.scopeFeatures.length }} features</span>
+          <span class="font-mono text-caption">{{ t('admin.submissions.detail.scopeCount', { count: sub.scopeFeatures.length }) }}</span>
         </div>
 
         <v-table v-if="sub.scopeFeatures.length" density="comfortable" class="mb-4">
           <thead>
             <tr>
-              <th>Módulo</th>
-              <th>Feature</th>
-              <th>Prioridad</th>
-              <th>Severidad</th>
+              <th>{{ t('admin.submissions.detail.module') }}</th>
+              <th>{{ t('common.feature') }}</th>
+              <th>{{ t('common.priority') }}</th>
+              <th>{{ t('common.severity') }}</th>
               <th />
             </tr>
           </thead>
           <tbody>
             <tr v-for="f in sub.scopeFeatures" :key="f.id">
-              <td class="cyber-mono">{{ f.moduleName }}</td>
+              <td class="font-mono">{{ f.moduleName }}</td>
               <td>
                 <div>{{ f.featureName }}</div>
                 <div v-if="f.featureDescription" class="text-caption text-medium-emphasis">{{ f.featureDescription }}</div>
               </td>
-              <td><v-chip size="x-small" variant="tonal" class="cyber-chip">{{ f.priority }}</v-chip></td>
-              <td><v-chip size="x-small" variant="tonal" class="cyber-chip">{{ f.severity }}</v-chip></td>
+              <td><v-chip size="x-small" variant="tonal" class="">{{ f.priorityLabel || f.priority }}</v-chip></td>
+              <td><v-chip size="x-small" variant="tonal" class="">{{ f.severityLabel || f.severity }}</v-chip></td>
               <td class="text-end">
                 <v-btn v-if="isEditable" icon="mdi-delete-outline" size="small" variant="text" @click="removeFeature(f.id)" />
               </td>
@@ -441,25 +447,25 @@ function fmtMoney(n: number, ccy = 'CLP') {
           </tbody>
         </v-table>
         <p v-else class="text-body-2 text-medium-emphasis mb-4">
-          Aún no hay features de scope.
+          {{ t('admin.submissions.detail.noScope') }}
         </p>
 
         <v-divider v-if="isEditable" class="my-4" />
 
         <div v-if="isEditable">
-          <div class="cyber-subtitle mb-2">// agregar feature</div>
-          <v-row dense>
+          <div class="text-overline text-medium-emphasis mb-2">{{ t('admin.submissions.detail.addFeature') }}</div>
+          <v-row no-gutters>
             <v-col cols="12" md="3">
-              <v-text-field v-model="newFeature.moduleName" label="Módulo" density="compact" />
+              <v-text-field v-model="newFeature.moduleName" :label="t('admin.submissions.detail.module')" density="compact" />
             </v-col>
             <v-col cols="12" md="4">
-              <v-text-field v-model="newFeature.featureName" label="Feature" density="compact" />
+              <v-text-field v-model="newFeature.featureName" :label="t('common.feature')" density="compact" />
             </v-col>
             <v-col cols="12" md="3">
-              <v-text-field v-model="newFeature.featureDescription" label="Descripción (opcional)" density="compact" />
+              <v-text-field v-model="newFeature.featureDescription" :label="t('common.description')" density="compact" />
             </v-col>
             <v-col cols="6" md="1">
-              <v-select v-model="newFeature.priority" :items="['LOW','MEDIUM','HIGH','CRITICAL']" label="Prio" density="compact" />
+              <v-select v-model="newFeature.priority" :items="['LOW','MEDIUM','HIGH','CRITICAL']" :label="t('common.priority')" density="compact" />
             </v-col>
             <v-col cols="6" md="1" class="d-flex align-center">
               <v-btn color="primary" :loading="saving" icon="mdi-plus" @click="addFeature" />
@@ -469,33 +475,33 @@ function fmtMoney(n: number, ccy = 'CLP') {
       </v-card>
 
       <!-- Budget items -->
-      <v-card class="cyber-card pa-6 mb-6">
+      <v-card variant="outlined" class="pa-6 mb-6">
         <div class="d-flex align-center mb-4">
-          <span class="cyber-subtitle">// 02 — presupuesto (días-persona)</span>
+          <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.budgetSection') }}</span>
           <v-spacer />
-          <span class="cyber-mono text-caption">
-            Total: {{ sub.totalBudgetHours }} h • {{ fmtMoney(sub.totalBudgetAmount, sub.budgetCurrency || 'CLP') }}
+          <span class="font-mono text-caption">
+            {{ t('admin.submissions.detail.budgetTotal', { hours: sub.totalBudgetHours, amount: fmtMoney(sub.totalBudgetAmount, sub.budgetCurrency || 'CLP') }) }}
           </span>
         </div>
 
         <v-table v-if="sub.budgetItems.length" density="comfortable" class="mb-4">
           <thead>
             <tr>
-              <th>Tipo</th>
-              <th>Descripción</th>
-              <th class="text-end">Horas</th>
-              <th class="text-end">Tarifa/h</th>
-              <th class="text-end">Monto</th>
+              <th>{{ t('common.type') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th class="text-end">{{ t('common.hours') }}</th>
+              <th class="text-end">{{ t('common.hourlyRate') }}</th>
+              <th class="text-end">{{ t('common.amount') }}</th>
               <th />
             </tr>
           </thead>
           <tbody>
             <tr v-for="i in sub.budgetItems" :key="i.id">
-              <td><v-chip size="x-small" class="cyber-chip">{{ i.itemType }}</v-chip></td>
+              <td><v-chip size="x-small" class="">{{ i.itemTypeLabel || i.itemType }}</v-chip></td>
               <td>{{ i.description }}</td>
-              <td class="text-end cyber-mono">{{ i.hours }}</td>
-              <td class="text-end cyber-mono">{{ fmtMoney(i.hourlyRate, sub.budgetCurrency || 'CLP') }}</td>
-              <td class="text-end cyber-mono">{{ fmtMoney(i.amount, sub.budgetCurrency || 'CLP') }}</td>
+              <td class="text-end font-mono">{{ i.hours }}</td>
+              <td class="text-end font-mono">{{ fmtMoney(i.hourlyRate, sub.budgetCurrency || 'CLP') }}</td>
+              <td class="text-end font-mono">{{ fmtMoney(i.amount, sub.budgetCurrency || 'CLP') }}</td>
               <td class="text-end">
                 <v-btn v-if="isEditable" icon="mdi-delete-outline" size="small" variant="text" @click="removeItem(i.id)" />
               </td>
@@ -503,35 +509,34 @@ function fmtMoney(n: number, ccy = 'CLP') {
           </tbody>
         </v-table>
         <p v-else class="text-body-2 text-medium-emphasis mb-4">
-          Aún no hay items de presupuesto.
+          {{ t('admin.submissions.detail.noBudget') }}
         </p>
 
         <v-divider v-if="isEditable" class="my-4" />
 
         <div v-if="isEditable">
-          <div class="cyber-subtitle mb-2">// agregar item</div>
-          <v-row dense>
+          <div class="text-overline text-medium-emphasis mb-2">{{ t('admin.submissions.detail.addItem') }}</div>
+          <v-row no-gutters>
             <v-col cols="6" md="2">
               <v-select
                 v-model="newItem.itemType"
                 :items="['SCOPING','EXECUTION','REVIEW','INFRASTRUCTURE']"
-                label="Tipo"
+                :label="t('common.type')"
                 density="compact"
               />
             </v-col>
             <v-col cols="12" md="4">
-              <v-text-field v-model="newItem.description" label="Descripción" density="compact" />
+              <v-text-field v-model="newItem.description" :label="t('common.description')" density="compact" />
             </v-col>
             <v-col cols="4" md="1">
-              <v-text-field v-model.number="newItem.days" label="Días" type="number" min="0.5" step="0.5" density="compact" />
+              <v-text-field v-model.number="newItem.days" :label="t('common.days')" type="number" min="0.5" step="0.5" density="compact" />
             </v-col>
             <v-col cols="4" md="2">
               <v-text-field
                 v-model.number="newItem.hourlyRate"
-                label="Tarifa/h (opcional)"
+                :label="t('common.hourlyRate')"
                 type="number"
                 density="compact"
-                :hint="`Default por especialista: ${auth.email ?? ''}`"
               />
             </v-col>
             <v-col cols="4" md="2">
@@ -550,8 +555,8 @@ function fmtMoney(n: number, ccy = 'CLP') {
       </v-card>
 
       <!-- Acciones -->
-      <v-card class="cyber-card pa-6 mb-6">
-        <div class="cyber-subtitle mb-3">// 03 — flujo de decisión</div>
+      <v-card variant="outlined" class="pa-6 mb-6">
+        <div class="text-overline text-medium-emphasis mb-3">{{ t('admin.submissions.detail.flowSection') }}</div>
 
         <div class="d-flex flex-wrap ga-3">
           <v-btn
@@ -562,7 +567,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
             :loading="saving"
             @click="transition('AWAITING_CLARIFICATION')"
           >
-            Pasar a scoping
+            {{ t('admin.submissions.detail.toScoping') }}
           </v-btn>
           <v-btn
             v-if="canMarkBudgeted"
@@ -571,7 +576,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
             :loading="saving"
             @click="markBudgeted"
           >
-            Enviar presupuesto al cliente
+            {{ t('admin.submissions.detail.sendBudget') }}
           </v-btn>
           <v-btn
             v-if="canAccept"
@@ -579,7 +584,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
             prepend-icon="mdi-check-circle-outline"
             @click="acceptDialog = true"
           >
-            Aceptar presupuesto (cliente)
+            {{ t('admin.submissions.detail.acceptBudget') }}
           </v-btn>
           <v-btn
             v-if="isEditable"
@@ -588,7 +593,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
             prepend-icon="mdi-close-octagon-outline"
             @click="rejectDialog = true"
           >
-            Rechazar
+            {{ t('admin.submissions.detail.reject') }}
           </v-btn>
         </div>
       </v-card>
@@ -596,63 +601,62 @@ function fmtMoney(n: number, ccy = 'CLP') {
 
     <!-- Accept dialog -->
     <v-dialog v-model="acceptDialog" max-width="560">
-      <v-card class="cyber-card">
-        <v-card-title class="cyber-title text-h5">Aceptar presupuesto</v-card-title>
+      <v-card variant="outlined">
+        <v-card-title class="text-h5 font-weight-bold">{{ t('admin.submissions.detail.acceptDialog.title') }}</v-card-title>
         <v-card-text>
           <p class="text-body-2 text-medium-emphasis mb-4">
-            Esto creará la compañía, el usuario del cliente, el proyecto, módulos, features,
-            la TestRequest (CONFIRMED) y la Quote (APPROVED). Se enviarán las credenciales por email.
+            {{ t('admin.submissions.detail.acceptDialog.description') }}
           </p>
-          <v-text-field v-model="acceptForm.companyName" label="Nombre de la compañía" />
+          <v-text-field v-model="acceptForm.companyName" :label="t('admin.submissions.detail.acceptDialog.companyName')" />
           <v-select
             v-model="acceptForm.paisId"
             :items="paises"
             item-title="nombre"
             item-value="id"
-            label="País"
+            :label="t('admin.submissions.detail.acceptDialog.country')"
           />
           <v-select
             v-model="acceptForm.testTypeCode"
             :items="testTypes"
             item-title="name"
             item-value="code"
-            label="Tipo de test"
+            :label="t('admin.submissions.detail.acceptDialog.testType')"
           />
           <v-select
             v-model="acceptForm.environmentCode"
-            :items="[{ code: '', name: '— sin ambiente —' }, ...environments]"
+            :items="[{ code: '', name: '— ' + t('common.optional') + ' —' }, ...environments]"
             item-title="name"
             item-value="code"
-            label="Ambiente"
+            :label="t('admin.submissions.detail.acceptDialog.environment')"
           />
           <v-select
             v-model="acceptForm.assignedSpecialistId"
-            :items="[{ id: '', email: '— sin asignar —', fullName: '' }, ...specialists]"
+            :items="[{ id: '', email: '— ' + t('common.optional') + ' —', fullName: '' }, ...specialists]"
             :item-title="(u: any) => u.fullName ? `${u.fullName} (${u.email})` : u.email"
             item-value="id"
-            label="Especialista asignado"
+            :label="t('admin.submissions.detail.acceptDialog.assignedSpecialist')"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="acceptDialog = false">Cancelar</v-btn>
-          <v-btn color="success" :loading="saving" @click="accept">Aceptar y crear todo</v-btn>
+          <v-btn variant="text" @click="acceptDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="success" :loading="saving" @click="accept">{{ t('admin.submissions.detail.acceptDialog.confirm') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <!-- Reject dialog -->
     <v-dialog v-model="rejectDialog" max-width="500">
-      <v-card class="cyber-card">
-        <v-card-title class="cyber-title text-h5">Rechazar submission</v-card-title>
+      <v-card variant="outlined">
+        <v-card-title class="text-h5 font-weight-bold">{{ t('admin.submissions.detail.rejectDialog.title') }}</v-card-title>
         <v-card-text>
-          <v-textarea v-model="rejectForm.reason" label="Motivo" rows="3" auto-grow />
+          <v-textarea v-model="rejectForm.reason" :label="t('admin.submissions.detail.rejectDialog.reason')" rows="3" auto-grow />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="rejectDialog = false">Cancelar</v-btn>
+          <v-btn variant="text" @click="rejectDialog = false">{{ t('common.cancel') }}</v-btn>
           <v-btn color="error" :loading="saving" :disabled="!rejectForm.reason.trim()" @click="reject">
-            Rechazar
+            {{ t('admin.submissions.detail.reject') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -660,15 +664,15 @@ function fmtMoney(n: number, ccy = 'CLP') {
 
     <!-- Result dialog -->
     <v-dialog :model-value="!!acceptResult" max-width="600" @update:model-value="(v) => !v && (acceptResult = null)">
-      <v-card v-if="acceptResult" class="cyber-card cyber-card-glow">
-        <v-card-title class="cyber-title text-h5">
+      <v-card v-if="acceptResult" class="">
+        <v-card-title class="text-h5 font-weight-bold">
           <v-icon color="success" class="me-2">mdi-check-decagram</v-icon>
-          Submission aceptada
+          {{ t('admin.submissions.detail.result.title') }}
         </v-card-title>
         <v-card-text>
-          <p class="mb-3">Se crearon las entidades del proyecto y se notificó al cliente.</p>
-          <div class="cyber-mono text-caption mb-2">
-            usuario: <span class="cyber-link">{{ acceptResult.userEmail }}</span>
+          <p class="mb-3">{{ t('admin.submissions.detail.result.body') }}</p>
+          <div class="font-mono text-caption mb-2">
+            {{ t('admin.submissions.detail.result.user') }} <span class="text-primary">{{ acceptResult.userEmail }}</span>
           </div>
           <v-alert
             v-if="acceptResult.generatedPassword"
@@ -676,20 +680,20 @@ function fmtMoney(n: number, ccy = 'CLP') {
             variant="tonal"
             class="mb-3"
           >
-            El envío por email está deshabilitado. Comparte manualmente la contraseña temporal:
-            <div class="cyber-mono mt-2" style="font-size: 1.1em">{{ acceptResult.generatedPassword }}</div>
+            {{ t('admin.submissions.detail.result.manualPassword') }}
+            <div class="font-mono mt-2" style="font-size: 1.1em">{{ acceptResult.generatedPassword }}</div>
           </v-alert>
           <v-alert v-else type="success" variant="tonal" class="mb-3" density="compact">
-            Email con credenciales enviado.
+            {{ t('admin.submissions.detail.result.emailSent') }}
           </v-alert>
-          <div class="cyber-mono text-caption">test-request: {{ acceptResult.testRequestId }}</div>
-          <div class="cyber-mono text-caption">quote: {{ acceptResult.quoteId }}</div>
+          <div class="font-mono text-caption">{{ t('admin.submissions.detail.result.testRequest') }} {{ acceptResult.testRequestId }}</div>
+          <div class="font-mono text-caption">{{ t('admin.submissions.detail.result.quote') }} {{ acceptResult.quoteId }}</div>
         </v-card-text>
         <v-card-actions>
-          <v-btn variant="text" @click="acceptResult = null">Cerrar</v-btn>
+          <v-btn variant="text" @click="acceptResult = null">{{ t('common.close') }}</v-btn>
           <v-spacer />
           <v-btn color="primary" :to="`/requests/${acceptResult.testRequestId}`" prepend-icon="mdi-arrow-right">
-            Ir a la TestRequest
+            {{ t('admin.submissions.detail.result.goToRequest') }}
           </v-btn>
         </v-card-actions>
       </v-card>

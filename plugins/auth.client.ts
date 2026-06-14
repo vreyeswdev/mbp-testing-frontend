@@ -1,5 +1,6 @@
-import { useAuthStore } from '~/stores/auth'
+import { useAuthStore, authMetaCookie, authTokenCookie } from '~/stores/auth'
 
 export default defineNuxtPlugin(() => {
-  useAuthStore().loadFromStorage()
+  const auth = useAuthStore()
+  auth.applyFromCookies(authMetaCookie().value, authTokenCookie().value)
 })

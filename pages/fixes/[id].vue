@@ -2,9 +2,10 @@
 import { useApi } from '~/composables/useApi'
 import { useCatalog } from '~/composables/useCatalog'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: false, layout: 'console' })
 
-useHead({ title: 'Fix — MBP Testing' })
+const { t } = useI18n()
+useHead({ title: () => `Fix — ${t('common.appName')}` })
 
 interface FixDto {
   id: string
@@ -12,13 +13,25 @@ interface FixDto {
   title: string
   description: string | null
   severity: string
+  severityLabel: string
   status: 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'WONT_FIX'
+  statusLabel: string
   reportedById: string
   reportedByEmail: string
   assignedToId: string | null
   assignedToEmail: string | null
   resolvedAt: string | null
   createdAt: string
+}
+
+const FIX_STATUS_LABELS: Record<string, string> = {
+  OPEN: 'Abierto',
+  IN_REVIEW: 'En revisión',
+  RESOLVED: 'Resuelto',
+  WONT_FIX: 'No se resolverá'
+}
+function fixStatusLabel(code: string) {
+  return FIX_STATUS_LABELS[code] ?? code
 }
 
 interface CommentDto {
@@ -61,7 +74,7 @@ async function load() {
     fix.value = await api.get<FixDto>(`/fixes/${id.value}`)
     comments.value = await api.get<CommentDto[]>(`/comments?targetType=FIX&targetId=${id.value}`)
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cargar'
+    error.value = e?.data?.message || t('common.errorLoad')
   } finally {
     loading.value = false
   }
@@ -85,7 +98,7 @@ async function applyTransition() {
     transitionDialog.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible cambiar el estado'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -100,7 +113,7 @@ async function postComment() {
     newComment.value = ''
     await load()
   } catch (e: any) {
-    error.value = e?.data?.message || 'No fue posible comentar'
+    error.value = e?.data?.message || t('common.errorSave')
   }
 }
 
@@ -129,7 +142,7 @@ onMounted(load)
 <template>
   <v-container class="py-8">
     <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/requests" class="mb-4">
-      Volver
+      {{ t('fixes.back') }}
     </v-btn>
 
     <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
@@ -139,51 +152,51 @@ onMounted(load)
     <v-skeleton-loader v-if="loading && !fix" type="card" />
 
     <template v-else-if="fix">
-      <v-card class="mb-6">
+      <v-card variant="outlined" class="mb-6">
         <v-card-title class="d-flex align-center">
           {{ fix.title }}
           <v-spacer />
           <v-chip :color="severityColor(fix.severity)" size="small" variant="tonal" class="me-2">
-            {{ fix.severity }}
+            {{ fix.severityLabel }}
           </v-chip>
           <v-chip :color="statusColor(fix.status)" variant="tonal">
-            {{ fix.status.replace(/_/g, ' ') }}
+            {{ fix.statusLabel }}
           </v-chip>
         </v-card-title>
         <v-card-text>
           <div v-if="fix.description" class="mb-3">{{ fix.description }}</div>
           <v-row>
             <v-col cols="12" md="4">
-              <div class="text-overline">Reportado por</div>
+              <div class="text-overline">{{ t('fixes.reportedBy') }}</div>
               <div>{{ fix.reportedByEmail }}</div>
             </v-col>
             <v-col cols="12" md="4">
-              <div class="text-overline">Asignado a</div>
-              <div>{{ fix.assignedToEmail || '—' }}</div>
+              <div class="text-overline">{{ t('fixes.assignedTo') }}</div>
+              <div>{{ fix.assignedToEmail || t('common.emptyDash') }}</div>
             </v-col>
             <v-col cols="12" md="4">
-              <div class="text-overline">Resuelto</div>
-              <div>{{ fix.resolvedAt ? new Date(fix.resolvedAt).toLocaleString() : '—' }}</div>
+              <div class="text-overline">{{ t('fixes.resolvedAt') }}</div>
+              <div>{{ fix.resolvedAt ? new Date(fix.resolvedAt).toLocaleString() : t('common.emptyDash') }}</div>
             </v-col>
           </v-row>
         </v-card-text>
         <v-card-actions class="flex-wrap pa-4">
           <v-btn
-            v-for="t in allowedNext"
-            :key="t"
-            :color="statusColor(t)"
+            v-for="nextS in allowedNext"
+            :key="nextS"
+            :color="statusColor(nextS)"
             variant="tonal"
             size="small"
             class="me-2 mb-2"
-            @click="openTransition(t)"
+            @click="openTransition(nextS)"
           >
-            → {{ t.replace(/_/g, ' ') }}
+            → {{ fixStatusLabel(nextS) }}
           </v-btn>
         </v-card-actions>
       </v-card>
 
-      <v-card>
-        <v-card-title>Comentarios</v-card-title>
+      <v-card variant="outlined">
+        <v-card-title>{{ t('fixes.comments') }}</v-card-title>
         <v-list density="comfortable">
           <v-list-item v-for="c in comments" :key="c.id">
             <template #prepend>
@@ -199,31 +212,31 @@ onMounted(load)
           </v-list-item>
           <v-list-item v-if="comments.length === 0">
             <v-list-item-title class="text-caption text-medium-emphasis">
-              Sin comentarios.
+              {{ t('fixes.noComments') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
         <v-divider />
         <v-card-text>
-          <v-textarea v-model="newComment" label="Escribe un comentario…" rows="2" auto-grow />
+          <v-textarea v-model="newComment" :label="t('fixes.writeComment')" rows="2" auto-grow />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn color="primary" :disabled="!newComment.trim()" @click="postComment">Comentar</v-btn>
+          <v-btn color="primary" :disabled="!newComment.trim()" @click="postComment">{{ t('fixes.post') }}</v-btn>
         </v-card-actions>
       </v-card>
     </template>
 
     <v-dialog v-model="transitionDialog" max-width="500">
       <v-card>
-        <v-card-title>Cambiar a {{ transitionTo.replace(/_/g, ' ') }}</v-card-title>
+        <v-card-title>{{ t('fixes.transitionTo', { label: fixStatusLabel(transitionTo) }) }}</v-card-title>
         <v-card-text>
-          <v-textarea v-model="transitionComment" label="Comentario (opcional)" rows="3" />
+          <v-textarea v-model="transitionComment" :label="t('common.commentOptional')" rows="3" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="transitionDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="applyTransition">Aplicar</v-btn>
+          <v-btn variant="text" @click="transitionDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" @click="applyTransition">{{ t('common.apply') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

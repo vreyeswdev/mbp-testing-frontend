@@ -12,43 +12,50 @@ export default defineNuxtPlugin((nuxtApp) => {
     directives,
     locale: { locale: 'es', messages: { es } },
     defaults: {
-      VBtn: { rounded: 'md', style: 'text-transform: none; letter-spacing: 0.02em;' },
-      VCard: { rounded: 'lg' },
+      VBtn: { rounded: 'md' },
+      VCard: { rounded: 'md' },
       VTextField: { variant: 'outlined', density: 'comfortable' },
       VSelect: { variant: 'outlined', density: 'comfortable' },
       VTextarea: { variant: 'outlined', density: 'comfortable' },
       VAutocomplete: { variant: 'outlined', density: 'comfortable' },
-      VCombobox: { variant: 'outlined', density: 'comfortable' }
+      VCombobox: { variant: 'outlined', density: 'comfortable' },
+      VDataTable: { density: 'comfortable' }
     },
     theme: {
-      defaultTheme: 'cyber',
+      defaultTheme: 'mbpLight',
       themes: {
-        cyber: {
+        mbpLight: {
+          dark: false,
+          colors: {
+            background: '#F6F7F9',
+            surface: '#FFFFFF',
+            'surface-variant': '#EEF1F5',
+            'on-surface-variant': '#1F2937',
+            primary: '#1E3A8A',
+            'on-primary': '#FFFFFF',
+            secondary: '#475569',
+            accent: '#0EA5E9',
+            success: '#16A34A',
+            info: '#2563EB',
+            warning: '#D97706',
+            error: '#DC2626'
+          }
+        },
+        mbpConsole: {
           dark: true,
           colors: {
-            background: '#0B0F14',
-            surface: '#11171F',
-            'surface-variant': '#1E293B',
-            'surface-bright': '#1A2332',
-            primary: '#22D3EE',
-            'on-primary': '#0B0F14',
-            secondary: '#64748B',
-            'on-secondary': '#E2E8F0',
-            accent: '#A78BFA',
-            success: '#34D399',
+            background: '#0F172A',
+            surface: '#1E293B',
+            'surface-variant': '#334155',
+            'on-surface-variant': '#E2E8F0',
+            primary: '#60A5FA',
+            'on-primary': '#0F172A',
+            secondary: '#94A3B8',
+            accent: '#22D3EE',
+            success: '#4ADE80',
             info: '#38BDF8',
             warning: '#FBBF24',
-            error: '#F87171',
-            'on-background': '#E2E8F0',
-            'on-surface': '#E2E8F0'
-          },
-          variables: {
-            'border-color': '#1E293B',
-            'border-opacity': 1,
-            'high-emphasis-opacity': 1,
-            'medium-emphasis-opacity': 0.78,
-            'disabled-opacity': 0.45,
-            'theme-overlay-multiplier': 1.5
+            error: '#F87171'
           }
         }
       }
