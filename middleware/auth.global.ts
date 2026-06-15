@@ -1,7 +1,7 @@
 import { useAuthStore, authMetaCookie, authTokenCookie } from '~/stores/auth'
 import type { Role } from '~/stores/auth'
 
-const PUBLIC_PATHS = ['/login', '/bienvenida', '/solicitar']
+const PUBLIC_PATHS = ['/login', '/bienvenida', '/solicitar', '/solicitud']
 
 function isPublic(path: string): boolean {
   if (path === '/') return true

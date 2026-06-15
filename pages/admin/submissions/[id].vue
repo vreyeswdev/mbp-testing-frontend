@@ -8,10 +8,14 @@ definePageMeta({
   requiresRole: ['ROLE_ADMIN', 'ROLE_ESPECIALISTA']
 })
 
-type SubmissionStatus = 'PENDING' | 'AWAITING_CLARIFICATION' | 'BUDGETED' | 'ACCEPTED' | 'REJECTED'
+type SubmissionStatus = 'PENDING' | 'AWAITING_CLARIFICATION' | 'BUDGETED' | 'NEGOTIATING' | 'AGREED' | 'AWAITING_PAYMENT' | 'ACCEPTED' | 'REJECTED'
+type PaymentStatus = 'NOT_REQUIRED' | 'PENDING' | 'PAID'
+type CommentParty = 'CLIENT' | 'INTERNAL'
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 type Severity = 'TRIVIAL' | 'MINOR' | 'MAJOR' | 'CRITICAL' | 'BLOCKER'
 type ItemType = 'SCOPING' | 'EXECUTION' | 'REVIEW' | 'INFRASTRUCTURE'
+type AutoScanStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+type ScopeFeatureSource = 'MANUAL' | 'AUTO'
 
 interface ScopeFeature {
   id: string
@@ -24,6 +28,7 @@ interface ScopeFeature {
   severity: Severity
   severityLabel: string
   position: number
+  source: ScopeFeatureSource
 }
 
 interface BudgetItem {
@@ -35,6 +40,15 @@ interface BudgetItem {
   hourlyRate: number
   amount: number
   position: number
+}
+
+interface SubmissionComment {
+  id: string
+  authorParty: CommentParty
+  authorUserId: string | null
+  authorDisplayName: string
+  body: string
+  createdAt: string
 }
 
 interface SubmissionDto {
@@ -64,6 +78,27 @@ interface SubmissionDto {
   totalBudgetHours: number
   budgetItems: BudgetItem[]
   scopeFeatures: ScopeFeature[]
+  websiteUrl: string | null
+  autoScanStatus: AutoScanStatus | null
+  autoScanStartedAt: string | null
+  autoScanFinishedAt: string | null
+  autoScanResult: Record<string, unknown> | null
+  autoScanError: string | null
+  publicToken: string | null
+  companyName: string | null
+  masterUserEmail: string | null
+  requestedTestTypeCode: string | null
+  requestedEnvironmentCode: string | null
+  assignedSpecialistId: string | null
+  assignedSpecialistEmail: string | null
+  clientAgreedAt: string | null
+  internalAgreedAt: string | null
+  agreedAt: string | null
+  paymentStatus: PaymentStatus
+  paymentStatusLabel: string
+  paymentReference: string | null
+  paidAt: string | null
+  comments: SubmissionComment[]
 }
 
 interface PaisDto { id: string; nombre: string; codigoIso: string }
@@ -147,6 +182,53 @@ async function loadCatalogs() {
   }
 }
 
+// // Polling del auto-scan: refresca cada 5s mientras está PENDING/RUNNING
+// const scanPoll = ref<ReturnType<typeof setInterval> | null>(null)
+// function startScanPolling() {
+//   stopScanPolling()
+//   scanPoll.value = setInterval(async () => {
+//     if (!sub.value) return
+//     const st = sub.value.autoScanStatus
+//     if (st !== 'PENDING' && st !== 'RUNNING') {
+//       stopScanPolling()
+//       return
+//     }
+//     await load()
+//   }, 5000)
+// }
+// function stopScanPolling() {
+//   if (scanPoll.value) {
+//     clearInterval(scanPoll.value)
+//     scanPoll.value = null
+//   }
+// }
+
+// watch(() => sub.value?.autoScanStatus, (st) => {
+//   if (st === 'PENDING' || st === 'RUNNING') startScanPolling()
+//   else stopScanPolling()
+// })
+
+// onBeforeUnmount(() => stopScanPolling())
+
+async function rescan() {
+  if (!sub.value) return
+  saving.value = true
+  try {
+    await api.post(`/submissions/${id.value}/rescan`)
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo iniciar el re-escaneo'
+  } finally {
+    saving.value = false
+  }
+}
+
+const autoScanCount = computed(() => {
+  const raw = sub.value?.autoScanResult as any
+  const list = raw?.funcionalidades_visibles
+  return Array.isArray(list) ? list.length : 0
+})
+
 onMounted(async () => {
   await load()
   await loadCatalogs()
@@ -208,6 +290,13 @@ const newItem = reactive({
   hourlyRate: 0
 })
 
+const itemTypeOptions: { value: ItemType; title: string }[] = [
+  { value: 'SCOPING', title: 'Relevamiento' },
+  { value: 'EXECUTION', title: 'Ejecución' },
+  { value: 'REVIEW', title: 'Revisión' },
+  { value: 'INFRASTRUCTURE', title: 'Infraestructura' }
+]
+
 const newItemHours = computed(() => +(newItem.days * hoursPerDay).toFixed(2))
 const newItemAmount = computed(() => +(newItemHours.value * (newItem.hourlyRate || 0)).toFixed(2))
 
@@ -226,6 +315,97 @@ async function addItem() {
     await load()
   } catch (e: any) {
     error.value = e?.data?.message || 'No se pudo agregar el item'
+  } finally {
+    saving.value = false
+  }
+}
+
+const editItemDialog = ref(false)
+const editItemForm = reactive({
+  id: '',
+  itemType: 'EXECUTION' as ItemType,
+  description: '',
+  days: 1,
+  hourlyRate: 0,
+  position: 0
+})
+const editItemHours = computed(() => +(editItemForm.days * hoursPerDay).toFixed(2))
+const editItemAmount = computed(() => +(editItemHours.value * (editItemForm.hourlyRate || 0)).toFixed(2))
+
+function openEditItem(i: BudgetItem) {
+  editItemForm.id = i.id
+  editItemForm.itemType = i.itemType
+  editItemForm.description = i.description
+  editItemForm.days = +(i.hours / hoursPerDay).toFixed(2)
+  editItemForm.hourlyRate = i.hourlyRate
+  editItemForm.position = i.position
+  editItemDialog.value = true
+}
+
+async function saveEditItem() {
+  if (!editItemForm.description.trim() || editItemForm.days <= 0) return
+  saving.value = true
+  try {
+    await api.put(`/submissions/${id.value}/budget-items/${editItemForm.id}`, {
+      itemType: editItemForm.itemType,
+      description: editItemForm.description.trim(),
+      days: editItemForm.days,
+      hourlyRate: editItemForm.hourlyRate > 0 ? editItemForm.hourlyRate : null,
+      position: editItemForm.position
+    })
+    editItemDialog.value = false
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo actualizar el item'
+  } finally {
+    saving.value = false
+  }
+}
+
+async function addFeatureToBudget(f: ScopeFeature) {
+  saving.value = true
+  try {
+    const desc = f.featureDescription
+      ? `${f.moduleName} — ${f.featureName} (${f.featureDescription})`
+      : `${f.moduleName} — ${f.featureName}`
+    await api.post(`/submissions/${id.value}/budget-items`, {
+      itemType: 'EXECUTION',
+      description: desc.slice(0, 500),
+      days: 1,
+      hourlyRate: null,
+      position: sub.value?.budgetItems.length ?? 0
+    })
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo agregar al presupuesto'
+  } finally {
+    saving.value = false
+  }
+}
+
+async function generateBudgetFromScope() {
+  if (!sub.value) return
+  if (sub.value.scopeFeatures.length === 0) return
+  if (!confirm(`Vamos a generar ${sub.value.scopeFeatures.length} items de tipo "Ejecución" (1 día c/u). Podrás editarlos después. ¿Continuar?`)) return
+  saving.value = true
+  try {
+    let position = sub.value.budgetItems.length
+    for (const f of sub.value.scopeFeatures) {
+      const desc = f.featureDescription
+        ? `${f.moduleName} — ${f.featureName} (${f.featureDescription})`
+        : `${f.moduleName} — ${f.featureName}`
+      await api.post(`/submissions/${id.value}/budget-items`, {
+        itemType: 'EXECUTION',
+        description: desc.slice(0, 500),
+        days: 1,
+        hourlyRate: null,
+        position: position++
+      })
+    }
+    success.value = `Generamos ${sub.value.scopeFeatures.length} items en el presupuesto`
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo generar el presupuesto'
   } finally {
     saving.value = false
   }
@@ -305,22 +485,92 @@ async function reject() {
   }
 }
 
+// ---------- Negociación / claim / acuerdo / comentarios ----------
+
+async function claim() {
+  saving.value = true
+  try {
+    await api.post(`/submissions/${id.value}/claim`)
+    success.value = 'Quedaste asignado a la solicitud'
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo tomar la solicitud'
+  } finally {
+    saving.value = false
+  }
+}
+
+async function internalAgree() {
+  saving.value = true
+  try {
+    await api.post(`/submissions/${id.value}/internal-agree`)
+    success.value = 'Acuerdo interno registrado'
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo marcar el acuerdo'
+  } finally {
+    saving.value = false
+  }
+}
+
+const newComment = ref('')
+async function postComment() {
+  if (!newComment.value.trim()) return
+  saving.value = true
+  try {
+    await api.post(`/submissions/${id.value}/comments`, { body: newComment.value.trim() })
+    newComment.value = ''
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.message || 'No se pudo enviar el comentario'
+  } finally {
+    saving.value = false
+  }
+}
+
+const publicShareUrl = computed(() => {
+  if (!sub.value?.publicToken) return null
+  if (typeof window === 'undefined') return null
+  return `${window.location.origin}/solicitud/${sub.value.publicToken}`
+})
+
+async function copyPublicLink() {
+  if (!publicShareUrl.value) return
+  try {
+    await navigator.clipboard.writeText(publicShareUrl.value)
+    success.value = 'Link público copiado'
+  } catch {
+    error.value = 'No se pudo copiar el link'
+  }
+}
+
 // ---------- helpers ----------
 
 const statusColor: Record<SubmissionStatus, string> = {
   PENDING: 'info',
   AWAITING_CLARIFICATION: 'warning',
   BUDGETED: 'primary',
+  NEGOTIATING: 'accent',
+  AGREED: 'success',
+  AWAITING_PAYMENT: 'warning',
   ACCEPTED: 'success',
   REJECTED: 'error'
 }
 
 const isEditable = computed(() => sub.value && sub.value.status !== 'ACCEPTED' && sub.value.status !== 'REJECTED')
 const canMarkBudgeted = computed(() =>
-  sub.value && (sub.value.status === 'PENDING' || sub.value.status === 'AWAITING_CLARIFICATION')
+  sub.value
+  && (sub.value.status === 'PENDING' || sub.value.status === 'AWAITING_CLARIFICATION' || sub.value.status === 'NEGOTIATING')
   && sub.value.scopeFeatures.length > 0 && sub.value.budgetItems.length > 0
 )
 const canAccept = computed(() => sub.value?.status === 'BUDGETED' && auth.isAdmin)
+const canClaim = computed(() => sub.value && !sub.value.assignedSpecialistId && sub.value.status !== 'ACCEPTED' && sub.value.status !== 'REJECTED')
+const canInternalAgree = computed(() => {
+  if (!sub.value) return false
+  if (sub.value.internalAgreedAt) return false
+  if (sub.value.budgetItems.length === 0) return false
+  return sub.value.status === 'BUDGETED' || sub.value.status === 'NEGOTIATING'
+})
 
 function fmtMoney(n: number, ccy = 'CLP') {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: ccy, maximumFractionDigits: 0 }).format(n)
@@ -411,13 +661,181 @@ function fmtMoney(n: number, ccy = 'CLP') {
             {{ t('admin.submissions.detail.rejectReason', { reason: sub.rejectionReason }) }}
           </v-alert>
         </div>
+
+        <v-divider class="my-4" />
+
+        <v-row dense>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">Compañía declarada</div>
+            <div class="text-body-2">{{ sub.companyName || '—' }}</div>
+          </v-col>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">Cuenta maestra</div>
+            <div class="text-body-2 font-mono">{{ sub.masterUserEmail || sub.contactEmail }}</div>
+          </v-col>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">QA / ambiente</div>
+            <div class="text-body-2">
+              {{ sub.requestedTestTypeCode || '—' }}<span v-if="sub.requestedEnvironmentCode"> · {{ sub.requestedEnvironmentCode }}</span>
+            </div>
+          </v-col>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">Especialista asignado</div>
+            <div class="text-body-2">{{ sub.assignedSpecialistEmail || '—' }}</div>
+          </v-col>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">Acuerdo</div>
+            <div class="text-caption">
+              Cliente: <span :class="sub.clientAgreedAt ? 'text-success' : 'text-medium-emphasis'">{{ sub.clientAgreedAt ? '✓ ' + new Date(sub.clientAgreedAt).toLocaleString() : 'pendiente' }}</span>
+            </div>
+            <div class="text-caption">
+              Interno: <span :class="sub.internalAgreedAt ? 'text-success' : 'text-medium-emphasis'">{{ sub.internalAgreedAt ? '✓ ' + new Date(sub.internalAgreedAt).toLocaleString() : 'pendiente' }}</span>
+            </div>
+          </v-col>
+          <v-col cols="12" md="4">
+            <div class="text-overline text-medium-emphasis">Pago</div>
+            <div class="text-body-2">
+              <v-chip size="small" :color="sub.paymentStatus === 'PAID' ? 'success' : sub.paymentStatus === 'PENDING' ? 'warning' : 'default'" variant="tonal">
+                {{ sub.paymentStatusLabel || sub.paymentStatus }}
+              </v-chip>
+              <span v-if="sub.paymentReference" class="ms-2 font-mono text-caption">{{ sub.paymentReference }}</span>
+            </div>
+            <div v-if="sub.paidAt" class="text-caption font-mono">{{ new Date(sub.paidAt).toLocaleString() }}</div>
+          </v-col>
+        </v-row>
+
+        <v-divider v-if="publicShareUrl" class="my-4" />
+
+        <div v-if="publicShareUrl" class="d-flex align-center ga-2 flex-wrap">
+          <v-icon size="18" color="medium-emphasis">mdi-link-variant</v-icon>
+          <span class="text-caption text-medium-emphasis">Link público del cliente</span>
+          <a :href="publicShareUrl" target="_blank" rel="noopener" class="font-mono text-caption text-decoration-none text-truncate" style="max-width: 480px;">{{ publicShareUrl }}</a>
+          <v-btn size="x-small" variant="text" prepend-icon="mdi-content-copy" @click="copyPublicLink">
+            Copiar
+          </v-btn>
+        </div>
       </v-card>
+
+      <!-- Auto-scan -->
+      <v-card v-if="sub.websiteUrl" variant="outlined" class="pa-6 mb-6">
+        <div class="d-flex align-center mb-3">
+          <v-icon color="accent" class="me-2">mdi-magnify-scan</v-icon>
+          <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.autoScan.section') }}</span>
+          <v-spacer />
+          <a :href="sub.websiteUrl" target="_blank" rel="noopener" class="font-mono text-caption text-decoration-none">
+            {{ sub.websiteUrl }} <v-icon size="14">mdi-open-in-new</v-icon>
+          </a>
+        </div>
+        <div class="d-flex align-center mb-2 flex-wrap ga-2">
+          <v-chip size="small" color="accent" variant="tonal" prepend-icon="mdi-robot-happy-outline">
+            {{ t('admin.submissions.detail.autoScan.completedHint', { count: autoScanCount }) }}
+          </v-chip>
+          <v-spacer />
+          <v-btn size="small" variant="text" :loading="saving" prepend-icon="mdi-refresh" @click="rescan">
+            {{ t('admin.submissions.detail.autoScan.retry') }}
+          </v-btn>
+        </div>
+        <v-expansion-panels variant="accordion" class="auto-scan-raw">
+          <v-expansion-panel>
+            <v-expansion-panel-title>
+              <v-icon class="me-2" size="18">mdi-code-json</v-icon>
+              {{ t('admin.submissions.detail.autoScan.viewRaw') }}
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <pre class="auto-scan-json">{{ JSON.stringify(sub.autoScanResult, null, 2) }}</pre>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card>
+      <!-- <v-card v-if="sub.websiteUrl" variant="outlined" class="pa-6 mb-6">
+        <div class="d-flex align-center mb-3">
+          <v-icon color="accent" class="me-2">mdi-magnify-scan</v-icon>
+          <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.autoScan.section') }}</span>
+          <v-spacer />
+          <a :href="sub.websiteUrl" target="_blank" rel="noopener" class="font-mono text-caption text-decoration-none">
+            {{ sub.websiteUrl }} <v-icon size="14">mdi-open-in-new</v-icon>
+          </a>
+        </div>
+
+        <v-alert
+          v-if="sub.autoScanStatus === 'PENDING' || sub.autoScanStatus === 'RUNNING'"
+          type="info"
+          variant="tonal"
+          density="compact"
+          class="mb-2"
+        >
+          <div class="d-flex align-center ga-3">
+            <v-progress-circular indeterminate size="20" width="2" />
+            <span>{{ t('admin.submissions.detail.autoScan.pending') }}</span>
+          </div>
+        </v-alert>
+
+        <v-alert
+          v-else-if="sub.autoScanStatus === 'FAILED'"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-2"
+        >
+          <div class="d-flex align-center ga-3 flex-wrap">
+            <span>{{ t('admin.submissions.detail.autoScan.failed', { error: sub.autoScanError || '—' }) }}</span>
+            <v-spacer />
+            <v-btn size="small" variant="text" :loading="saving" prepend-icon="mdi-refresh" @click="rescan">
+              {{ t('admin.submissions.detail.autoScan.retry') }}
+            </v-btn>
+          </div>
+        </v-alert>
+
+        <template v-else-if="sub.autoScanStatus === 'COMPLETED'">
+          <div class="d-flex align-center mb-2 flex-wrap ga-2">
+            <v-chip size="small" color="accent" variant="tonal" prepend-icon="mdi-robot-happy-outline">
+              {{ t('admin.submissions.detail.autoScan.completedHint', { count: autoScanCount }) }}
+            </v-chip>
+            <v-spacer />
+            <v-btn size="small" variant="text" :loading="saving" prepend-icon="mdi-refresh" @click="rescan">
+              {{ t('admin.submissions.detail.autoScan.retry') }}
+            </v-btn>
+          </div>
+          <v-expansion-panels variant="accordion" class="auto-scan-raw">
+            <v-expansion-panel>
+              <v-expansion-panel-title>
+                <v-icon class="me-2" size="18">mdi-code-json</v-icon>
+                {{ t('admin.submissions.detail.autoScan.viewRaw') }}
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <pre class="auto-scan-json">{{ JSON.stringify(sub.autoScanResult, null, 2) }}</pre>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+        </template>
+
+        <div v-else class="d-flex align-center ga-3 flex-wrap">
+          <span class="text-body-2 text-medium-emphasis">
+            El sitio aún no se ha analizado.
+          </span>
+          <v-spacer />
+          <v-btn size="small" color="accent" variant="tonal" :loading="saving" prepend-icon="mdi-magnify-scan" @click="rescan">
+            Escanear ahora
+          </v-btn>
+        </div>
+      </v-card> -->
 
       <!-- Scope features -->
       <v-card variant="outlined" class="pa-6 mb-6">
-        <div class="d-flex align-center mb-4">
+        <div class="d-flex align-center mb-4 flex-wrap ga-2">
           <span class="text-overline text-medium-emphasis">{{ t('admin.submissions.detail.scopeSection') }}</span>
           <v-spacer />
+          <v-btn
+            v-if="isEditable && sub.scopeFeatures.length > 0"
+            size="small"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-cash-plus"
+            :loading="saving"
+            @click="generateBudgetFromScope"
+          >
+            Pasar todo al presupuesto
+          </v-btn>
           <span class="font-mono text-caption">{{ t('admin.submissions.detail.scopeCount', { count: sub.scopeFeatures.length }) }}</span>
         </div>
 
@@ -435,12 +853,37 @@ function fmtMoney(n: number, ccy = 'CLP') {
             <tr v-for="f in sub.scopeFeatures" :key="f.id">
               <td class="font-mono">{{ f.moduleName }}</td>
               <td>
-                <div>{{ f.featureName }}</div>
+                <div class="d-flex align-center ga-2">
+                  <span>{{ f.featureName }}</span>
+                  <v-chip
+                    v-if="f.source === 'AUTO'"
+                    size="x-small"
+                    color="accent"
+                    variant="tonal"
+                    prepend-icon="mdi-robot-happy-outline"
+                  >
+                    {{ t('admin.submissions.detail.autoScan.autoBadge') }}
+                  </v-chip>
+                </div>
                 <div v-if="f.featureDescription" class="text-caption text-medium-emphasis">{{ f.featureDescription }}</div>
               </td>
               <td><v-chip size="x-small" variant="tonal" class="">{{ f.priorityLabel || f.priority }}</v-chip></td>
               <td><v-chip size="x-small" variant="tonal" class="">{{ f.severityLabel || f.severity }}</v-chip></td>
               <td class="text-end">
+                <v-tooltip text="Agregar como item de presupuesto" location="top">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-if="isEditable"
+                      v-bind="props"
+                      icon="mdi-cash-plus"
+                      size="small"
+                      variant="text"
+                      color="primary"
+                      :disabled="saving"
+                      @click="addFeatureToBudget(f)"
+                    />
+                  </template>
+                </v-tooltip>
                 <v-btn v-if="isEditable" icon="mdi-delete-outline" size="small" variant="text" @click="removeFeature(f.id)" />
               </td>
             </tr>
@@ -503,6 +946,7 @@ function fmtMoney(n: number, ccy = 'CLP') {
               <td class="text-end font-mono">{{ fmtMoney(i.hourlyRate, sub.budgetCurrency || 'CLP') }}</td>
               <td class="text-end font-mono">{{ fmtMoney(i.amount, sub.budgetCurrency || 'CLP') }}</td>
               <td class="text-end">
+                <v-btn v-if="isEditable" icon="mdi-pencil-outline" size="small" variant="text" :disabled="saving" @click="openEditItem(i)" />
                 <v-btn v-if="isEditable" icon="mdi-delete-outline" size="small" variant="text" @click="removeItem(i.id)" />
               </td>
             </tr>
@@ -520,7 +964,9 @@ function fmtMoney(n: number, ccy = 'CLP') {
             <v-col cols="6" md="2">
               <v-select
                 v-model="newItem.itemType"
-                :items="['SCOPING','EXECUTION','REVIEW','INFRASTRUCTURE']"
+                :items="itemTypeOptions"
+                item-title="title"
+                item-value="value"
                 :label="t('common.type')"
                 density="compact"
               />
@@ -554,11 +1000,63 @@ function fmtMoney(n: number, ccy = 'CLP') {
         </div>
       </v-card>
 
+      <!-- Comentarios -->
+      <v-card variant="outlined" class="pa-6 mb-6">
+        <div class="d-flex align-center mb-3">
+          <v-icon class="me-2">mdi-message-text-outline</v-icon>
+          <span class="text-overline text-medium-emphasis">Comentarios con el cliente</span>
+          <v-spacer />
+          <span class="font-mono text-caption">{{ sub.comments.length }}</span>
+        </div>
+
+        <div v-if="sub.comments.length === 0" class="text-body-2 text-medium-emphasis">
+          Sin comentarios aún.
+        </div>
+        <div v-else class="d-flex flex-column ga-3 mb-3">
+          <div v-for="c in sub.comments" :key="c.id" class="submission-comment" :class="{ 'is-client': c.authorParty === 'CLIENT' }">
+            <div class="text-caption text-medium-emphasis">
+              <strong>{{ c.authorDisplayName }}</strong>
+              · <span>{{ c.authorParty === 'CLIENT' ? 'Cliente' : 'Equipo MBP' }}</span>
+              · {{ new Date(c.createdAt).toLocaleString() }}
+            </div>
+            <div class="text-body-2 mt-1" style="white-space: pre-wrap;">{{ c.body }}</div>
+          </div>
+        </div>
+
+        <v-divider v-if="isEditable" class="my-3" />
+
+        <div v-if="isEditable">
+          <v-textarea
+            v-model="newComment"
+            label="Responder al cliente"
+            variant="outlined"
+            rows="3"
+            auto-grow
+            hide-details
+          />
+          <div class="d-flex justify-end mt-2">
+            <v-btn color="primary" variant="flat" :loading="saving" :disabled="!newComment.trim()" prepend-icon="mdi-send" @click="postComment">
+              Enviar comentario
+            </v-btn>
+          </div>
+        </div>
+      </v-card>
+
       <!-- Acciones -->
       <v-card variant="outlined" class="pa-6 mb-6">
         <div class="text-overline text-medium-emphasis mb-3">{{ t('admin.submissions.detail.flowSection') }}</div>
 
         <div class="d-flex flex-wrap ga-3">
+          <v-btn
+            v-if="canClaim"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-account-arrow-right-outline"
+            :loading="saving"
+            @click="claim"
+          >
+            Tomar / Asignarme
+          </v-btn>
           <v-btn
             v-if="sub.status === 'PENDING'"
             color="warning"
@@ -579,12 +1077,22 @@ function fmtMoney(n: number, ccy = 'CLP') {
             {{ t('admin.submissions.detail.sendBudget') }}
           </v-btn>
           <v-btn
+            v-if="canInternalAgree"
+            color="success"
+            variant="tonal"
+            prepend-icon="mdi-handshake-outline"
+            :loading="saving"
+            @click="internalAgree"
+          >
+            Marcar acuerdo interno
+          </v-btn>
+          <v-btn
             v-if="canAccept"
             color="success"
             prepend-icon="mdi-check-circle-outline"
             @click="acceptDialog = true"
           >
-            {{ t('admin.submissions.detail.acceptBudget') }}
+            {{ t('admin.submissions.detail.acceptBudget') }} (manual)
           </v-btn>
           <v-btn
             v-if="isEditable"
@@ -596,8 +1104,74 @@ function fmtMoney(n: number, ccy = 'CLP') {
             {{ t('admin.submissions.detail.reject') }}
           </v-btn>
         </div>
+        <div v-if="sub.status === 'AWAITING_PAYMENT'" class="text-caption text-medium-emphasis mt-3">
+          Esperando que el cliente confirme el pago desde el detalle público.
+        </div>
       </v-card>
     </template>
+
+    <!-- Edit budget item dialog -->
+    <v-dialog v-model="editItemDialog" max-width="640">
+      <v-card variant="outlined">
+        <v-card-title class="text-h5 font-weight-bold">Editar item de presupuesto</v-card-title>
+        <v-card-text>
+          <v-row dense>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="editItemForm.itemType"
+                :items="itemTypeOptions"
+                item-title="title"
+                item-value="value"
+                :label="t('common.type')"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="12">
+              <v-textarea
+                v-model="editItemForm.description"
+                :label="t('common.description')"
+                rows="2"
+                auto-grow
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="editItemForm.days"
+                :label="t('common.days')"
+                type="number"
+                min="0.5"
+                step="0.5"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="editItemForm.hourlyRate"
+                :label="t('common.hourlyRate')"
+                type="number"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                :model-value="`${editItemHours} h / ${fmtMoney(editItemAmount, sub?.budgetCurrency || 'CLP')}`"
+                label="Cálculo"
+                readonly
+                density="compact"
+              />
+            </v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="editItemDialog = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" :loading="saving" :disabled="!editItemForm.description.trim() || editItemForm.days <= 0" @click="saveEditItem">
+            {{ t('common.save') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Accept dialog -->
     <v-dialog v-model="acceptDialog" max-width="560">
@@ -700,3 +1274,29 @@ function fmtMoney(n: number, ccy = 'CLP') {
     </v-dialog>
   </v-container>
 </template>
+
+<style scoped>
+.auto-scan-json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-height: 360px;
+  overflow: auto;
+  background: rgba(var(--v-theme-surface-variant), 0.5);
+  border-radius: 8px;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.submission-comment {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-surface-variant), 0.18);
+  border: 1px solid rgba(var(--v-theme-surface-variant), 0.4);
+}
+.submission-comment.is-client {
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+</style>

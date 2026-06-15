@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import banner from '~/assets/banner.jpg'
 
 const { t } = useI18n()
 useHead({ title: () => `${t('common.appName')} — ${t('welcome.title')}` })
@@ -47,8 +48,12 @@ const benefits = computed(() => [
           </div>
         </v-col>
         <v-col cols="12" md="5" class="d-none d-md-block">
-          <v-card variant="tonal" color="primary" class="pa-6">
-            <v-list bg-color="transparent" density="comfortable">
+          <div class="welcome-banner">
+            <img :src="banner" alt="QA Services" class="welcome-banner__img" />
+            <div class="welcome-banner__shine" aria-hidden="true" />
+          </div>
+          <v-card variant="tonal" color="primary" class="pa-4 mt-4">
+            <v-list bg-color="transparent" density="compact">
               <v-list-item
                 v-for="b in benefits"
                 :key="b.text"
@@ -129,3 +134,25 @@ const benefits = computed(() => [
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.welcome-banner {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(var(--v-theme-surface-variant), 0.8);
+  isolation: isolate;
+}
+.welcome-banner__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.welcome-banner__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
+  pointer-events: none;
+}
+</style>

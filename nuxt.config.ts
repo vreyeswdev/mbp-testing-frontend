@@ -31,7 +31,8 @@ export default defineNuxtConfig({
   routeRules: {
     '/login': { ssr: false },
     '/estoy-dentro': { ssr: false },
-    '/solicitar': { ssr: false }
+    '/solicitar': { ssr: false },
+    '/solicitud/**': { ssr: false }
   },
   vite: {
     vue: {

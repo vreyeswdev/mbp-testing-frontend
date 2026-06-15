@@ -7,24 +7,24 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-  <v-app theme="mbpLight">
+  <v-app>
     <v-app-bar density="comfortable" flat border>
       <v-container class="d-flex align-center py-0" fluid>
-        <NuxtLink to="/" class="text-decoration-none d-inline-flex align-center ga-2 text-on-surface">
-          <v-icon color="primary" size="24">mdi-shield-check-outline</v-icon>
-          <span class="text-h6 font-weight-bold">{{ t('common.appName') }}</span>
+        <NuxtLink to="/" class="text-decoration-none text-on-surface">
+          <BrandMark :size="28" />
         </NuxtLink>
         <v-spacer />
         <v-btn variant="text" to="/#servicios" class="d-none d-sm-inline-flex">{{ t('nav.services') }}</v-btn>
         <v-btn variant="text" to="/#proceso" class="d-none d-sm-inline-flex">{{ t('nav.process') }}</v-btn>
         <v-btn variant="text" to="/solicitar">{{ t('nav.requestService') }}</v-btn>
+        <ThemeToggle class="ms-2" />
         <template v-if="auth.isAuthenticated">
-          <v-btn color="primary" variant="flat" to="/dashboard" prepend-icon="mdi-view-dashboard-outline">
+          <v-btn color="primary" variant="flat" to="/dashboard" prepend-icon="mdi-view-dashboard-outline" class="ms-2">
             {{ t('nav.goToPanel') }}
           </v-btn>
         </template>
         <template v-else>
-          <v-btn color="primary" variant="flat" to="/login" prepend-icon="mdi-login">
+          <v-btn color="primary" variant="flat" to="/login" prepend-icon="mdi-login" class="ms-2">
             {{ t('auth.login') }}
           </v-btn>
         </template>

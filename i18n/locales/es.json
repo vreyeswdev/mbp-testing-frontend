@@ -166,6 +166,50 @@
       "back": "Volver al inicio"
     }
   },
+  "immersive": {
+    "tag": "Solicitud guiada",
+    "subtag": "4 pasos · ~3 min",
+    "shortcut": "para continuar",
+    "steps": {
+      "project": "Proyecto",
+      "contact": "Contacto",
+      "scope": "Alcance",
+      "review": "Revisión"
+    },
+    "intro": {
+      "overline": "Servicios QA",
+      "title1": "Convirtamos tu proyecto en",
+      "title2": "software a prueba de fallos.",
+      "subtitle": "Cuéntanos qué necesitas testear. Un especialista revisa, define el alcance y te envía un presupuesto detallado en horas-persona.",
+      "f1": { "title": "Respuesta ágil", "body": "Recibirás un primer contacto el mismo día hábil." },
+      "f2": { "title": "Especialistas QA", "body": "Te asignamos un especialista según el dominio del proyecto." },
+      "f3": { "title": "Cero compromiso", "body": "El presupuesto es gratuito. Tú decides cuándo avanzar." },
+      "start": "Comenzar solicitud"
+    },
+    "project": {
+      "title": "Háblanos de tu proyecto",
+      "subtitle": "Lo básico para que entendamos el contexto del producto que quieres asegurar.",
+      "urlLabel": "URL del sitio o app (opcional)",
+      "urlHint": "Si la incluyes, haremos un análisis automático antes de revisarlo.",
+      "autoScanInfo": "Analizaremos el sitio automáticamente y daremos un punto de partida al especialista.",
+      "autoScanBadge": "Análisis automático"
+    },
+    "contact": {
+      "title": "¿Cómo te contactamos?",
+      "subtitle": "Tu email será el usuario del portal si aceptas el presupuesto."
+    },
+    "scope": {
+      "title": "¿Qué quieres testear?",
+      "subtitle": "Cuanto más detalle, más preciso el presupuesto. Sin formalismos.",
+      "h1": "Módulos y funcionalidades",
+      "h2": "Riesgos conocidos",
+      "h3": "Criticidad esperada"
+    },
+    "review": {
+      "title": "Revisa antes de enviar",
+      "subtitle": "Si todo se ve bien, envíalo. Te responderemos a tu email."
+    }
+  },
   "dashboard": {
     "overline": "Métricas",
     "title": "Dashboard",
@@ -362,6 +406,15 @@
           "testRequest": "solicitud:",
           "quote": "presupuesto:",
           "goToRequest": "Ir a la solicitud"
+        },
+        "autoScan": {
+          "section": "Análisis del sitio",
+          "pending": "Analizando el sitio…",
+          "completedHint": "Encontramos {count} funcionalidades. Edita o elimina las que no apliquen.",
+          "failed": "El análisis falló: {error}",
+          "retry": "Volver a escanear",
+          "autoBadge": "auto",
+          "viewRaw": "Ver datos crudos del escaneo"
         }
       }
     },
