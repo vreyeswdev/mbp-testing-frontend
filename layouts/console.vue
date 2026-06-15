@@ -216,6 +216,7 @@ const pageTitle = computed(() => {
         </template>
         <v-list density="compact">
           <v-list-item to="/estoy-dentro" prepend-icon="mdi-account-circle-outline" :title="t('nav.profile')" />
+          <v-list-item to="/manual" prepend-icon="mdi-book-open-page-variant-outline" title="Manual de uso" />
           <v-divider />
           <v-list-item @click="auth.logout()" prepend-icon="mdi-logout" :title="t('auth.logout')" />
         </v-list>
