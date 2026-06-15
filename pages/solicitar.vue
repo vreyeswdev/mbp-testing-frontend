@@ -4,7 +4,7 @@ import { reactive, ref, computed, watch } from 'vue'
 const { t } = useI18n()
 useHead({ title: () => `Solicitar QA — ${t('common.appName')}` })
 
-interface TestTypeOption { id: string; code: string; name: string; description?: string | null }
+interface TestTypeOption { id: string; code: string; name: string; description?: string | null; available: boolean }
 interface EnvironmentOption { id: string; code: string; name: string }
 interface ScopeFeatureInput { moduleName: string; featureName: string; featureDescription?: string }
 
@@ -351,18 +351,27 @@ const selectedEnvironment = computed(() =>
                     v-for="tt in testTypes"
                     :key="tt.code"
                     class="solicitar__type-card"
-                    :class="{ 'is-selected': form.requestedTestTypeCode === tt.code }"
-                    @click="form.requestedTestTypeCode = tt.code"
-                    role="button"
-                    tabindex="0"
-                    @keydown.enter="form.requestedTestTypeCode = tt.code"
-                    @keydown.space.prevent="form.requestedTestTypeCode = tt.code"
+                    :class="{
+                      'is-selected': form.requestedTestTypeCode === tt.code,
+                      'is-disabled': !tt.available
+                    }"
+                    :role="tt.available ? 'button' : undefined"
+                    :tabindex="tt.available ? 0 : -1"
+                    :aria-disabled="!tt.available"
+                    @click="tt.available && (form.requestedTestTypeCode = tt.code)"
+                    @keydown.enter="tt.available && (form.requestedTestTypeCode = tt.code)"
+                    @keydown.space.prevent="tt.available && (form.requestedTestTypeCode = tt.code)"
                   >
-                    <div class="d-flex align-center ga-2">
-                      <v-icon :color="form.requestedTestTypeCode === tt.code ? 'primary' : 'medium-emphasis'">
-                        {{ form.requestedTestTypeCode === tt.code ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}
-                      </v-icon>
-                      <span class="text-subtitle-2">{{ tt.name }}</span>
+                    <div class="d-flex align-center justify-space-between ga-2">
+                      <div class="d-flex align-center ga-2">
+                        <v-icon :color="form.requestedTestTypeCode === tt.code ? 'primary' : 'medium-emphasis'">
+                          {{ form.requestedTestTypeCode === tt.code ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}
+                        </v-icon>
+                        <span class="text-subtitle-2">{{ tt.name }}</span>
+                      </div>
+                      <v-chip v-if="!tt.available" size="x-small" color="accent" variant="tonal" prepend-icon="mdi-clock-outline">
+                        Próximamente
+                      </v-chip>
                     </div>
                     <p v-if="tt.description" class="text-caption text-medium-emphasis mt-2 mb-0">
                       {{ tt.description }}
@@ -805,6 +814,14 @@ const selectedEnvironment = computed(() =>
   border-color: rgb(var(--v-theme-primary));
   background: rgba(var(--v-theme-primary), 0.08);
   box-shadow: 0 4px 24px rgba(var(--v-theme-primary), 0.2);
+}
+.solicitar__type-card.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: rgba(var(--v-theme-surface-variant), 0.25);
+}
+.solicitar__type-card.is-disabled:hover {
+  border-color: rgba(var(--v-theme-surface-variant), 0.8);
 }
 
 .solicitar__empty {
