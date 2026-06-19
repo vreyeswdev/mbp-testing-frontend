@@ -93,6 +93,7 @@
     "companies": "Compañías",
     "testTypes": "Tipos de prueba",
     "environments": "Ambientes",
+    "cypressRunner": "Cypress Runner",
     "adminPanelTitle": "Panel de administración",
     "console": "Consola"
   },
@@ -515,6 +516,41 @@
         "code": "Código (UPPER_CASE)",
         "name": "Nombre"
       }
+    },
+    "cypress": {
+      "title": "Pruebas automatizadas (Cypress)",
+      "subtitle": "Selecciona un spec de la lista y ejecútalo en el runner remoto.",
+      "specsTitle": "Specs disponibles",
+      "refresh": "Recargar",
+      "noSpecs": "El runner no tiene specs disponibles bajo cypress/e2e.",
+      "loadError": "No se pudieron cargar los specs.",
+      "checkHealth": "Probar runner",
+      "runnerHealthy": "Runner activo",
+      "runnerOffline": "Runner no responde",
+      "selected": "Seleccionado",
+      "run": "Ejecutar",
+      "running": "Ejecutando… esto puede tardar varios minutos.",
+      "runError": "Error ejecutando el spec.",
+      "noResult": "Aún no hay resultados. Elegí un spec y ejecutalo.",
+      "result": "Resultado",
+      "success": "Éxito",
+      "failed": "Falló",
+      "duration": "Duración",
+      "browser": "Navegador",
+      "startedAt": "Inicio",
+      "endedAt": "Fin",
+      "stats": {
+        "total": "Total",
+        "passed": "Pasaron",
+        "failed": "Fallaron",
+        "pending": "Pendientes",
+        "skipped": "Omitidos"
+      },
+      "details": "Detalle de tests",
+      "noTests": "El run no devolvió tests.",
+      "state": "Estado",
+      "test": "Test",
+      "testDuration": "Duración (ms)"
     }
   }
 }

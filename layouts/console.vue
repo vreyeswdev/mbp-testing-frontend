@@ -34,7 +34,10 @@ const nav = computed(() => [
 const adminNav = computed(() => {
   const items: { title: string; icon: string; to: string }[] = []
   if (auth.isAdmin || auth.isEspecialista) {
-    items.push({ title: t('nav.submissions'), icon: 'mdi-inbox-arrow-down-outline', to: '/admin/submissions' })
+    items.push(
+      { title: t('nav.submissions'), icon: 'mdi-inbox-arrow-down-outline', to: '/admin/submissions' },
+      { title: t('nav.cypressRunner'), icon: 'mdi-play-circle-outline', to: '/cypress' }
+    )
   }
   if (auth.isAdmin) {
     items.push(
@@ -60,7 +63,8 @@ const pageTitle = computed(() => {
     '/admin/submissions': t('nav.submissions'),
     '/admin/companias': t('nav.companies'),
     '/admin/test-types': t('nav.testTypes'),
-    '/admin/environments': t('nav.environments')
+    '/admin/environments': t('nav.environments'),
+    '/cypress': t('nav.cypressRunner')
   }
   for (const key of Object.keys(map)) {
     if (route.path === key || route.path.startsWith(key + '/')) return map[key]
