@@ -4,7 +4,22 @@ import { reactive, ref, computed, watch } from 'vue'
 const { t } = useI18n()
 useHead({ title: () => `Solicitar QA — ${t('common.appName')}` })
 
-interface TestTypeOption { id: string; code: string; name: string; description?: string | null; available: boolean }
+type ServiceCategory = 'QA' | 'AUTOMATION' | 'PERFORMANCE' | 'SECURITY'
+interface TestTypeOption { id: string; code: string; name: string; description?: string | null; available: boolean; serviceCategory: ServiceCategory; ordering: number }
+
+const CATEGORY_ORDER: ServiceCategory[] = ['QA', 'AUTOMATION', 'PERFORMANCE', 'SECURITY']
+const CATEGORY_LABELS: Record<ServiceCategory, string> = {
+  QA: 'QA Manual',
+  AUTOMATION: 'Automatización',
+  PERFORMANCE: 'Performance',
+  SECURITY: 'Seguridad'
+}
+const CATEGORY_ICONS: Record<ServiceCategory, string> = {
+  QA: 'mdi-account-check-outline',
+  AUTOMATION: 'mdi-robot-outline',
+  PERFORMANCE: 'mdi-speedometer',
+  SECURITY: 'mdi-shield-lock-outline'
+}
 interface EnvironmentOption { id: string; code: string; name: string }
 interface ScopeFeatureInput { moduleName: string; featureName: string; featureDescription?: string }
 
@@ -201,6 +216,23 @@ const selectedTestType = computed(() =>
 const selectedEnvironment = computed(() =>
   environments.value.find(e => e.code === form.requestedEnvironmentCode)
 )
+
+const testTypesByCategory = computed(() => {
+  const groups = new Map<ServiceCategory, TestTypeOption[]>()
+  for (const tt of testTypes.value) {
+    const cat = (tt.serviceCategory ?? 'QA') as ServiceCategory
+    if (!groups.has(cat)) groups.set(cat, [])
+    groups.get(cat)!.push(tt)
+  }
+  return CATEGORY_ORDER
+    .filter(cat => groups.has(cat))
+    .map(cat => ({
+      category: cat,
+      label: CATEGORY_LABELS[cat],
+      icon: CATEGORY_ICONS[cat],
+      types: groups.get(cat)!.sort((a, b) => a.ordering - b.ordering || a.name.localeCompare(b.name))
+    }))
+})
 </script>
 
 <template>
@@ -346,37 +378,49 @@ const selectedEnvironment = computed(() =>
                 <div v-if="catalogLoading" class="d-flex justify-center pa-4">
                   <v-progress-circular indeterminate color="primary" />
                 </div>
-                <div v-else class="solicitar__type-grid">
-                  <div
-                    v-for="tt in testTypes"
-                    :key="tt.code"
-                    class="solicitar__type-card"
-                    :class="{
-                      'is-selected': form.requestedTestTypeCode === tt.code,
-                      'is-disabled': !tt.available
-                    }"
-                    :role="tt.available ? 'button' : undefined"
-                    :tabindex="tt.available ? 0 : -1"
-                    :aria-disabled="!tt.available"
-                    @click="tt.available && (form.requestedTestTypeCode = tt.code)"
-                    @keydown.enter="tt.available && (form.requestedTestTypeCode = tt.code)"
-                    @keydown.space.prevent="tt.available && (form.requestedTestTypeCode = tt.code)"
+                <div v-else>
+                  <section
+                    v-for="group in testTypesByCategory"
+                    :key="group.category"
+                    class="solicitar__type-group"
                   >
-                    <div class="d-flex align-center justify-space-between ga-2">
-                      <div class="d-flex align-center ga-2">
-                        <v-icon :color="form.requestedTestTypeCode === tt.code ? 'primary' : 'medium-emphasis'">
-                          {{ form.requestedTestTypeCode === tt.code ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}
-                        </v-icon>
-                        <span class="text-subtitle-2">{{ tt.name }}</span>
-                      </div>
-                      <v-chip v-if="!tt.available" size="x-small" color="accent" variant="tonal" prepend-icon="mdi-clock-outline">
-                        Próximamente
-                      </v-chip>
+                    <div class="d-flex align-center ga-2 mb-2">
+                      <v-icon size="small" color="primary">{{ group.icon }}</v-icon>
+                      <span class="text-overline">{{ group.label }}</span>
                     </div>
-                    <p v-if="tt.description" class="text-caption text-medium-emphasis mt-2 mb-0">
-                      {{ tt.description }}
-                    </p>
-                  </div>
+                    <div class="solicitar__type-grid">
+                      <div
+                        v-for="tt in group.types"
+                        :key="tt.code"
+                        class="solicitar__type-card"
+                        :class="{
+                          'is-selected': form.requestedTestTypeCode === tt.code,
+                          'is-disabled': !tt.available
+                        }"
+                        :role="tt.available ? 'button' : undefined"
+                        :tabindex="tt.available ? 0 : -1"
+                        :aria-disabled="!tt.available"
+                        @click="tt.available && (form.requestedTestTypeCode = tt.code)"
+                        @keydown.enter="tt.available && (form.requestedTestTypeCode = tt.code)"
+                        @keydown.space.prevent="tt.available && (form.requestedTestTypeCode = tt.code)"
+                      >
+                        <div class="d-flex align-center justify-space-between ga-2">
+                          <div class="d-flex align-center ga-2">
+                            <v-icon :color="form.requestedTestTypeCode === tt.code ? 'primary' : 'medium-emphasis'">
+                              {{ form.requestedTestTypeCode === tt.code ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}
+                            </v-icon>
+                            <span class="text-subtitle-2">{{ tt.name }}</span>
+                          </div>
+                          <v-chip v-if="!tt.available" size="x-small" color="accent" variant="tonal" prepend-icon="mdi-clock-outline">
+                            Próximamente
+                          </v-chip>
+                        </div>
+                        <p v-if="tt.description" class="text-caption text-medium-emphasis mt-2 mb-0">
+                          {{ tt.description }}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
                 </div>
 
                 <v-select
@@ -793,6 +837,8 @@ const selectedEnvironment = computed(() =>
   padding: 24px;
 }
 .solicitar__step { padding-block: 8px 24px; }
+
+.solicitar__type-group + .solicitar__type-group { margin-top: 18px; }
 
 .solicitar__type-grid {
   display: grid;

@@ -6,7 +6,8 @@
       "Bash(npx vue-tsc *)",
       "Bash(npx nuxi *)",
       "Bash(mvn -DskipTests compile)",
-      "Bash(mvn -DskipTests clean compile)"
+      "Bash(mvn -DskipTests clean compile)",
+      "Bash(mvn -q compile -DskipTests)"
     ]
   }
 }

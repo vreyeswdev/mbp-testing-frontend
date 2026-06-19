@@ -10,12 +10,26 @@ definePageMeta({
 const { t } = useI18n()
 useHead({ title: () => `${t('admin.testTypes.title')} — ${t('common.appName')}` })
 
+type ServiceCategory = 'QA' | 'AUTOMATION' | 'PERFORMANCE' | 'SECURITY'
+
 interface TestTypeDto {
   id: string
   code: string
   name: string
   description: string | null
+  available: boolean
+  serviceCategory: ServiceCategory
+  ordering: number
 }
+
+const CATEGORY_LABELS: Record<ServiceCategory, string> = {
+  QA: 'QA Manual',
+  AUTOMATION: 'Automatización',
+  PERFORMANCE: 'Performance',
+  SECURITY: 'Seguridad'
+}
+const categoryOptions = (Object.keys(CATEGORY_LABELS) as ServiceCategory[])
+  .map(c => ({ value: c, title: CATEGORY_LABELS[c] }))
 
 const api = useApi()
 
@@ -25,7 +39,15 @@ const error = ref<string | null>(null)
 
 const dialog = ref(false)
 const saving = ref(false)
-const form = ref({ code: '', name: '', description: '' })
+const editingId = ref<string | null>(null)
+const form = ref<{
+  code: string
+  name: string
+  description: string
+  available: boolean
+  serviceCategory: ServiceCategory
+  ordering: number
+}>({ code: '', name: '', description: '', available: true, serviceCategory: 'QA', ordering: 0 })
 
 async function load() {
   loading.value = true
@@ -40,18 +62,40 @@ async function load() {
 }
 
 function openNew() {
-  form.value = { code: '', name: '', description: '' }
+  editingId.value = null
+  form.value = { code: '', name: '', description: '', available: true, serviceCategory: 'QA', ordering: 0 }
+  dialog.value = true
+}
+
+function openEdit(item: TestTypeDto) {
+  editingId.value = item.id
+  form.value = {
+    code: item.code,
+    name: item.name,
+    description: item.description ?? '',
+    available: item.available,
+    serviceCategory: item.serviceCategory,
+    ordering: item.ordering
+  }
   dialog.value = true
 }
 
 async function save() {
   saving.value = true
   try {
-    await api.post<TestTypeDto>('/test-types', {
+    const body = {
       code: form.value.code.toUpperCase(),
       name: form.value.name,
-      description: form.value.description || null
-    })
+      description: form.value.description || null,
+      available: form.value.available,
+      serviceCategory: form.value.serviceCategory,
+      ordering: form.value.ordering
+    }
+    if (editingId.value) {
+      await api.put<TestTypeDto>(`/test-types/${editingId.value}`, body)
+    } else {
+      await api.post<TestTypeDto>('/test-types', body)
+    }
     dialog.value = false
     await load()
   } catch (e: any) {
@@ -76,8 +120,16 @@ const headers = computed(() => [
   { title: t('admin.testTypes.headers.code'), key: 'code' },
   { title: t('admin.testTypes.headers.name'), key: 'name' },
   { title: t('admin.testTypes.headers.description'), key: 'description' },
+  { title: 'Orden', key: 'ordering', width: 80 },
+  { title: 'Disponible', key: 'available', width: 110 },
   { title: '', key: 'actions', sortable: false, align: 'end' as const }
 ])
+
+const groupBy = [{ key: 'serviceCategory', order: 'asc' as const }]
+
+function categoryLabel(code: string) {
+  return CATEGORY_LABELS[code as ServiceCategory] ?? code
+}
 </script>
 
 <template>
@@ -100,10 +152,36 @@ const headers = computed(() => [
         :headers="headers"
         :items="items"
         :loading="loading"
-        items-per-page="25"
+        :group-by="groupBy"
+        items-per-page="50"
         density="comfortable"
       >
+        <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+          <tr>
+            <td :colspan="columns.length" class="bg-surface-variant">
+              <div class="d-flex align-center ga-2 py-1">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  :icon="isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                  @click="toggleGroup(item)"
+                />
+                <span class="text-subtitle-2">{{ categoryLabel(item.value as string) }}</span>
+              </div>
+            </td>
+          </tr>
+        </template>
+        <template #item.available="{ item }">
+          <v-chip
+            size="x-small"
+            :color="item.available ? 'success' : 'accent'"
+            variant="tonal"
+          >
+            {{ item.available ? 'Sí' : 'Próximamente' }}
+          </v-chip>
+        </template>
         <template #item.actions="{ item }">
+          <v-btn size="small" variant="text" icon="mdi-pencil" @click="openEdit(item)" />
           <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="remove(item)" />
         </template>
       </v-data-table>
@@ -116,11 +194,33 @@ const headers = computed(() => [
           <v-text-field v-model="form.code" :label="t('admin.testTypes.dialog.code')" />
           <v-text-field v-model="form.name" :label="t('admin.testTypes.dialog.name')" />
           <v-textarea v-model="form.description" :label="t('admin.testTypes.dialog.description')" rows="2" />
+          <v-select
+            v-model="form.serviceCategory"
+            :items="categoryOptions"
+            label="Categoría de servicio"
+            item-title="title"
+            item-value="value"
+          />
+          <v-text-field
+            v-model.number="form.ordering"
+            label="Orden dentro de la categoría"
+            type="number"
+            min="0"
+          />
+          <v-switch
+            v-model="form.available"
+            label="Disponible para clientes"
+            color="primary"
+            density="comfortable"
+            hide-details
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="dialog = false">{{ t('common.cancel') }}</v-btn>
-          <v-btn color="primary" :loading="saving" @click="save">{{ t('common.create') }}</v-btn>
+          <v-btn color="primary" :loading="saving" @click="save">
+            {{ editingId ? t('common.save') : t('common.create') }}
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
