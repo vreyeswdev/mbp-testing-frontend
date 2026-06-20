@@ -37,6 +37,7 @@ interface K6Summary {
 }
 
 interface K6RunResponse {
+  runId?: string
   success: boolean
   type: string
   profile: K6Profile
@@ -50,6 +51,34 @@ interface K6RunResponse {
   metrics: K6Metrics
   stages: K6Stage[]
   summary: K6Summary
+}
+
+interface K6CurrentStage {
+  index: number
+  total: number
+  durationMs: number
+  rawDuration?: string
+  target: number
+  elapsedInStageMs: number
+}
+
+type K6RunStatusValue = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+interface K6RunStatus {
+  runId: string
+  status: K6RunStatusValue
+  profile: K6Profile
+  testName: string
+  method: HttpMethod
+  targetUrl: string
+  startedAt: string
+  endedAt: string | null
+  elapsedMs: number
+  totalDurationMs: number
+  progressPct: number
+  currentStage: K6CurrentStage | null
+  result: K6RunResponse | null
+  error: { message: string } | null
 }
 
 interface HealthResponse {
@@ -69,6 +98,15 @@ const bodyText = ref('')
 const running = ref(false)
 const runError = ref<string | null>(null)
 const result = ref<K6RunResponse | null>(null)
+
+// Estado para recuperación post-524.
+// `currentRunId` se genera ANTES del POST para poder refrescar el estado
+// si la conexión muere. `lostConnection` separa "el POST cayó por
+// timeout/red" (la prueba sigue corriendo) de un error real del runner.
+const currentRunId = ref<string | null>(null)
+const runStatus = ref<K6RunStatus | null>(null)
+const lostConnection = ref(false)
+const refreshing = ref(false)
 
 const healthLoading = ref(false)
 const healthState = ref<'unknown' | 'up' | 'down'>('unknown')
@@ -99,10 +137,41 @@ async function checkHealth() {
   }
 }
 
+function newRunId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Fallback (navegadores muy viejos): no es UUID v4 estricto, pero
+  // tampoco va a llegar a backend porque Joi rechazaría. Mantener simple.
+  return 'r-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
+// Heurística para detectar "se cayó la conexión del POST pero la prueba
+// puede seguir corriendo". Cubre Cloudflare (524), gateway timeouts
+// (502/503/504), aborts y errores de red de fetch (FetchError sin status).
+function isConnectionLikelyDropped(err: any): boolean {
+  const status = err?.statusCode ?? err?.status ?? err?.response?.status
+  if (status === 524 || status === 502 || status === 503 || status === 504) return true
+  if (status && status >= 200) return false // hay status HTTP real → no es drop
+  const msg = String(err?.message || '').toLowerCase()
+  return (
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('network') ||
+    msg.includes('fetch failed') ||
+    msg.includes('aborted') ||
+    err?.name === 'FetchError' ||
+    err?.name === 'AbortError'
+  )
+}
+
 async function runScenario() {
   if (running.value) return
   runError.value = null
   result.value = null
+  runStatus.value = null
+  lostConnection.value = false
+  currentRunId.value = null
 
   if (!testName.value.trim()) {
     runError.value = t('admin.k6.runError')
@@ -148,9 +217,14 @@ async function runScenario() {
     return
   }
 
+  // runId se genera ANTES del POST para que el backend-api lo persista en
+  // su store en memoria y podamos consultar el estado por GET aún si la
+  // respuesta del POST se pierde por 524.
+  currentRunId.value = newRunId()
   running.value = true
   try {
     const payload: Record<string, unknown> = {
+      runId: currentRunId.value,
       profile: profile.value,
       testName: testName.value.trim(),
       method: method.value,
@@ -159,10 +233,48 @@ async function runScenario() {
     if (headers) payload.headers = headers
     if (body !== undefined) payload.body = body
     result.value = await api.post<K6RunResponse>('/k6-runner/run', payload)
-  } catch (err: any) {
-    runError.value = err?.data?.message || err?.message || t('admin.k6.runError')
-  } finally {
     running.value = false
+  } catch (err: any) {
+    if (isConnectionLikelyDropped(err)) {
+      // No es un fallo de la prueba: la conexión se cayó pero k6 puede
+      // seguir corriendo en backend-api. Dejamos running=true para que la
+      // UI siga mostrando "ejecutando" y el usuario pueda refrescar.
+      lostConnection.value = true
+      runError.value = null
+      // Intento oportunista: traer el estado inicial sin bloquear al usuario.
+      refreshRunStatus().catch(() => { /* el botón sigue disponible */ })
+    } else {
+      runError.value = err?.data?.message || err?.message || t('admin.k6.runError')
+      running.value = false
+    }
+  }
+}
+
+async function refreshRunStatus() {
+  if (!currentRunId.value) return
+  refreshing.value = true
+  try {
+    const data = await api.get<K6RunStatus>(`/k6-runner/runs/${currentRunId.value}`)
+    runStatus.value = data
+    if (data.status === 'COMPLETED' && data.result) {
+      result.value = data.result
+      running.value = false
+      lostConnection.value = false
+    } else if (data.status === 'FAILED') {
+      runError.value = data.error?.message || t('admin.k6.runError')
+      running.value = false
+      lostConnection.value = false
+    }
+  } catch (err: any) {
+    const status = err?.statusCode ?? err?.status ?? err?.response?.status
+    if (status === 404) {
+      runError.value = t('admin.k6.runNotFound')
+      running.value = false
+      lostConnection.value = false
+    }
+    // Cualquier otro error: dejar al usuario reintentar manualmente.
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -379,9 +491,63 @@ onMounted(() => {
           <v-divider />
 
           <!-- En ejecución -->
-          <div v-if="running" class="pa-8 text-center">
-            <v-progress-circular indeterminate size="48" color="primary" class="mb-3" />
-            <div class="text-body-2 text-medium-emphasis">{{ t('admin.k6.running') }}</div>
+          <div v-if="running" class="pa-5">
+            <v-alert
+              v-if="lostConnection"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="mb-4"
+              icon="mdi-cloud-off-outline"
+            >
+              <div class="text-caption">{{ t('admin.k6.connectionLost') }}</div>
+            </v-alert>
+
+            <div class="d-flex align-center mb-3">
+              <v-progress-circular indeterminate size="32" color="primary" class="me-3" />
+              <div>
+                <div class="text-body-2 font-weight-medium">{{ t('admin.k6.running') }}</div>
+                <div v-if="currentRunId" class="text-caption text-medium-emphasis font-monospace">
+                  {{ t('admin.k6.runIdLabel') }}: {{ currentRunId }}
+                </div>
+              </div>
+            </div>
+
+            <div v-if="runStatus">
+              <v-progress-linear
+                :model-value="runStatus.progressPct"
+                height="10"
+                rounded
+                color="primary"
+                class="mb-2"
+              />
+              <div class="d-flex justify-space-between text-caption text-medium-emphasis mb-3">
+                <span>{{ fmtNumber(runStatus.progressPct, 1) }}%</span>
+                <span>
+                  {{ t('admin.k6.elapsed') }}: {{ fmtDuration(runStatus.elapsedMs) }} /
+                  {{ t('admin.k6.totalEstimated') }}: {{ fmtDuration(runStatus.totalDurationMs) }}
+                </span>
+              </div>
+
+              <div v-if="runStatus.currentStage" class="text-body-2 mb-2">
+                {{ t('admin.k6.stageLabel', {
+                  index: runStatus.currentStage.index,
+                  total: runStatus.currentStage.total,
+                  target: runStatus.currentStage.target
+                }) }}
+              </div>
+            </div>
+
+            <v-btn
+              variant="tonal"
+              color="primary"
+              prepend-icon="mdi-refresh"
+              :loading="refreshing"
+              :disabled="!currentRunId"
+              @click="refreshRunStatus"
+            >
+              {{ t('admin.k6.refreshStatus') }}
+            </v-btn>
           </div>
 
           <!-- Error -->
@@ -390,6 +556,16 @@ onMounted(() => {
               <div class="font-weight-medium">{{ t('admin.k6.runError') }}</div>
               <div class="text-caption text-pre-wrap mt-1">{{ runError }}</div>
             </v-alert>
+            <v-btn
+              v-if="currentRunId"
+              class="mt-3"
+              variant="text"
+              prepend-icon="mdi-refresh"
+              :loading="refreshing"
+              @click="refreshRunStatus"
+            >
+              {{ t('admin.k6.refreshStatus') }}
+            </v-btn>
           </div>
 
           <!-- Sin datos -->
