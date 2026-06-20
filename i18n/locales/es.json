@@ -571,7 +571,7 @@
       "targetUrl": "URL objetivo",
       "targetUrlHint": "Debe iniciar con http:// o https://",
       "headers": "Headers (JSON)",
-      "headersHint": "Objeto JSON. Ej: {\"Authorization\":\"Bearer ...\"}",
+      "headersHint": "Objeto JSON con los headers HTTP a enviar.",
       "body": "Body (JSON, opcional)",
       "bodyHint": "Sólo para POST/PUT/PATCH",
       "invalidHeaders": "Headers debe ser un objeto JSON válido.",
