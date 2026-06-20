@@ -131,7 +131,17 @@ async function runScenario() {
   try {
     if (bodyAllowed.value) {
       const parsedBody = parseJsonLoose(bodyText.value)
-      if (parsedBody !== undefined) body = parsedBody
+      if (parsedBody !== undefined) {
+        const isValidBody =
+          typeof parsedBody === 'string' ||
+          Array.isArray(parsedBody) ||
+          (typeof parsedBody === 'object' && parsedBody !== null)
+        if (!isValidBody) {
+          runError.value = t('admin.k6.invalidBody')
+          return
+        }
+        body = parsedBody
+      }
     }
   } catch {
     runError.value = t('admin.k6.invalidBody')
