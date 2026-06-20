@@ -94,6 +94,7 @@
     "testTypes": "Tipos de prueba",
     "environments": "Ambientes",
     "cypressRunner": "Cypress Runner",
+    "k6Runner": "k6 Runner",
     "adminPanelTitle": "Panel de administración",
     "console": "Consola"
   },
@@ -551,6 +552,55 @@
       "state": "Estado",
       "test": "Test",
       "testDuration": "Duración (ms)"
+    },
+    "k6": {
+      "title": "Pruebas de carga (k6)",
+      "subtitle": "Configura un escenario y ejecútalo contra el runner remoto.",
+      "configTitle": "Configuración del escenario",
+      "checkHealth": "Probar runner",
+      "runnerHealthy": "Runner activo",
+      "runnerOffline": "Runner no responde",
+      "profile": "Perfil de carga",
+      "profileHints": {
+        "QUICK": "10 → 1000 VUs en ~4 minutos.",
+        "STANDARD": "10 → 1000 VUs en ~9 minutos.",
+        "AGGRESSIVE": "100 → 5000 VUs en ~6 minutos."
+      },
+      "testName": "Nombre de la prueba",
+      "method": "Método HTTP",
+      "targetUrl": "URL objetivo",
+      "targetUrlHint": "Debe iniciar con http:// o https://",
+      "headers": "Headers (JSON)",
+      "headersHint": "Objeto JSON. Ej: {\"Authorization\":\"Bearer ...\"}",
+      "body": "Body (JSON, opcional)",
+      "bodyHint": "Sólo para POST/PUT/PATCH",
+      "invalidHeaders": "Headers debe ser un objeto JSON válido.",
+      "invalidBody": "Body debe ser JSON válido.",
+      "run": "Ejecutar",
+      "running": "Ejecutando… esto puede tardar varios minutos.",
+      "runError": "Error ejecutando el escenario.",
+      "noResult": "Aún no hay resultados. Configurá un escenario y ejecutalo.",
+      "result": "Resultado",
+      "passed": "Estable",
+      "warning": "Advertencia",
+      "failed": "Crítico",
+      "summary": "Resumen",
+      "duration": "Duración",
+      "startedAt": "Inicio",
+      "endedAt": "Fin",
+      "maxUsers": "Usuarios máx.",
+      "stages": "Etapas",
+      "stageDuration": "Duración",
+      "stageTarget": "VUs objetivo",
+      "metrics": {
+        "title": "Métricas",
+        "requests": "Requests totales",
+        "rps": "Requests/segundo",
+        "avgResponseTime": "Latencia promedio (ms)",
+        "p95": "p95 (ms)",
+        "p99": "p99 (ms)",
+        "errorRate": "Tasa de error"
+      }
     }
   }
 }

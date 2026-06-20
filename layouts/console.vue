@@ -36,7 +36,8 @@ const adminNav = computed(() => {
   if (auth.isAdmin || auth.isEspecialista) {
     items.push(
       { title: t('nav.submissions'), icon: 'mdi-inbox-arrow-down-outline', to: '/admin/submissions' },
-      { title: t('nav.cypressRunner'), icon: 'mdi-play-circle-outline', to: '/cypress' }
+      { title: t('nav.cypressRunner'), icon: 'mdi-play-circle-outline', to: '/cypress' },
+      { title: t('nav.k6Runner'), icon: 'mdi-speedometer', to: '/k6' }
     )
   }
   if (auth.isAdmin) {
@@ -64,7 +65,8 @@ const pageTitle = computed(() => {
     '/admin/companias': t('nav.companies'),
     '/admin/test-types': t('nav.testTypes'),
     '/admin/environments': t('nav.environments'),
-    '/cypress': t('nav.cypressRunner')
+    '/cypress': t('nav.cypressRunner'),
+    '/k6': t('nav.k6Runner')
   }
   for (const key of Object.keys(map)) {
     if (route.path === key || route.path.startsWith(key + '/')) return map[key]
