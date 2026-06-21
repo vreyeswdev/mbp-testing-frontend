@@ -48,6 +48,34 @@ interface CypressRunResponse {
   runs: CypressRunDetail[]
 }
 
+interface CypressRunExecutionResponse {
+  runResultId: string | null
+  result: CypressRunResponse
+}
+
+interface TestRunResultSummary {
+  id: string
+  testRequestId: string | null
+  testCardId: string | null
+  spec: string
+  success: boolean | null
+  totalTests: number | null
+  totalPassed: number | null
+  totalFailed: number | null
+  durationMs: number | null
+  startedAt: string | null
+  endedAt: string | null
+  executedByUserId: string | null
+  executedByEmail: string | null
+}
+
+interface Page<T> {
+  content: T[]
+  totalElements: number
+  number: number
+  size: number
+}
+
 interface HealthResponse {
   healthy: boolean
 }
@@ -60,9 +88,14 @@ const loadError = ref<string | null>(null)
 const running = ref(false)
 const runError = ref<string | null>(null)
 const result = ref<CypressRunResponse | null>(null)
+const lastRunResultId = ref<string | null>(null)
 
 const healthLoading = ref(false)
 const healthState = ref<'unknown' | 'up' | 'down'>('unknown')
+
+const history = ref<TestRunResultSummary[]>([])
+const historyLoading = ref(false)
+const historyError = ref<string | null>(null)
 
 async function loadSpecs() {
   loadingSpecs.value = true
@@ -96,12 +129,30 @@ async function runSelected() {
   running.value = true
   runError.value = null
   result.value = null
+  lastRunResultId.value = null
   try {
-    result.value = await api.post<CypressRunResponse>('/cypress-runner/run', { spec: selected.value })
+    const data = await api.post<CypressRunExecutionResponse>('/cypress-runner/run', { spec: selected.value })
+    result.value = data.result
+    lastRunResultId.value = data.runResultId
+    // Refrescar historial para incluir el run recién persistido.
+    loadHistory()
   } catch (err: any) {
     runError.value = err?.data?.message || err?.message || t('admin.cypress.runError')
   } finally {
     running.value = false
+  }
+}
+
+async function loadHistory() {
+  historyLoading.value = true
+  historyError.value = null
+  try {
+    const page = await api.get<Page<TestRunResultSummary>>('/test-runs?page=0&size=20')
+    history.value = page.content ?? []
+  } catch (err: any) {
+    historyError.value = err?.data?.message || err?.message || t('admin.cypress.historyError')
+  } finally {
+    historyLoading.value = false
   }
 }
 
@@ -138,6 +189,7 @@ const flatTests = computed<CypressTest[]>(() => {
 onMounted(() => {
   loadSpecs()
   checkHealth()
+  loadHistory()
 })
 </script>
 
@@ -170,6 +222,16 @@ onMounted(() => {
         </v-btn>
       </div>
     </div>
+
+    <v-alert
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+      icon="mdi-information-outline"
+    >
+      {{ t('admin.cypress.managedHint') }}
+    </v-alert>
 
     <v-row>
       <!-- Selector de specs -->
@@ -239,13 +301,34 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <!-- Resultados -->
+      <!-- Resultados (en vivo) -->
       <v-col cols="12" md="7">
         <v-card variant="outlined" rounded="lg" min-height="320">
-          <v-card-title class="d-flex align-center text-body-1 py-3">
+          <v-card-title class="d-flex align-center text-body-1 py-3 flex-wrap gap-2">
             <v-icon start>mdi-chart-bar</v-icon>
             {{ t('admin.cypress.result') }}
             <v-spacer />
+            <v-chip
+              v-if="result && lastRunResultId"
+              :to="`/test-runs/${lastRunResultId}`"
+              color="primary"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-content-save-check-outline"
+              :title="t('admin.cypress.savedHint')"
+            >
+              {{ t('admin.cypress.saved') }}
+            </v-chip>
+            <v-chip
+              v-else-if="result"
+              color="warning"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-content-save-alert-outline"
+              :title="t('admin.cypress.savedHint')"
+            >
+              {{ t('admin.cypress.notSaved') }}
+            </v-chip>
             <v-chip
               v-if="result"
               :color="result.success ? 'success' : 'error'"
@@ -351,6 +434,85 @@ onMounted(() => {
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Historial reciente -->
+    <v-card variant="outlined" rounded="lg" class="mt-6">
+      <v-card-title class="d-flex align-center text-body-1 py-3">
+        <v-icon start>mdi-history</v-icon>
+        {{ t('admin.cypress.history') }}
+        <v-spacer />
+        <v-btn
+          variant="text"
+          density="comfortable"
+          icon="mdi-refresh"
+          size="small"
+          :loading="historyLoading"
+          @click="loadHistory"
+        />
+      </v-card-title>
+      <v-divider />
+
+      <div v-if="historyError" class="pa-4">
+        <v-alert type="error" variant="tonal" density="compact">{{ historyError }}</v-alert>
+      </div>
+
+      <div v-else-if="historyLoading && history.length === 0" class="d-flex justify-center pa-6">
+        <v-progress-circular indeterminate size="28" />
+      </div>
+
+      <div v-else-if="history.length === 0" class="pa-4">
+        <v-alert type="info" variant="tonal" density="compact">
+          {{ t('admin.cypress.historyEmpty') }}
+        </v-alert>
+      </div>
+
+      <v-table v-else density="compact">
+        <thead>
+          <tr>
+            <th>{{ t('admin.cypress.historyResult') }}</th>
+            <th>{{ t('admin.cypress.historySpec') }}</th>
+            <th class="text-right">{{ t('admin.cypress.stats.passed') }}</th>
+            <th class="text-right">{{ t('admin.cypress.stats.failed') }}</th>
+            <th>{{ t('admin.cypress.duration') }}</th>
+            <th>{{ t('admin.cypress.historyEndedAt') }}</th>
+            <th>{{ t('admin.cypress.historyExecutedBy') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in history" :key="row.id">
+            <td>
+              <v-chip
+                :color="row.success ? 'success' : 'error'"
+                size="x-small"
+                variant="tonal"
+                :prepend-icon="row.success ? 'mdi-check' : 'mdi-close'"
+              >
+                {{ row.success ? t('admin.cypress.success') : t('admin.cypress.failed') }}
+              </v-chip>
+            </td>
+            <td class="font-monospace text-body-2">{{ row.spec }}</td>
+            <td class="text-right text-success">{{ row.totalPassed ?? '—' }}</td>
+            <td class="text-right" :class="(row.totalFailed ?? 0) > 0 ? 'text-error' : ''">
+              {{ row.totalFailed ?? '—' }}
+            </td>
+            <td>{{ fmtDuration(row.durationMs) }}</td>
+            <td>{{ fmtDateTime(row.endedAt) }}</td>
+            <td class="text-caption">{{ row.executedByEmail ?? '—' }}</td>
+            <td>
+              <v-btn
+                size="small"
+                variant="text"
+                :to="`/test-runs/${row.id}`"
+                prepend-icon="mdi-open-in-new"
+              >
+                {{ t('admin.cypress.viewDetail') }}
+              </v-btn>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
   </v-container>
 </template>
 

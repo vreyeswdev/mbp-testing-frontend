@@ -223,9 +223,20 @@ onMounted(load)
 
 <template>
   <v-container class="py-6" fluid>
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" :to="`/requests/${id}`" class="mb-3">
-      {{ t('board.back') }}
-    </v-btn>
+    <div class="d-flex align-center flex-wrap gap-2 mb-3">
+      <v-btn variant="text" prepend-icon="mdi-arrow-left" :to="`/requests/${id}`">
+        {{ t('board.back') }}
+      </v-btn>
+      <v-spacer />
+      <v-btn
+        variant="tonal"
+        color="primary"
+        prepend-icon="mdi-file-code-outline"
+        :to="`/requests/${id}/specs`"
+      >
+        {{ t('admin.cypressSpecs.title') }}
+      </v-btn>
+    </div>
 
     <div class="mb-5">
       <div class="text-overline text-medium-emphasis">{{ t('board.overline') }}</div>

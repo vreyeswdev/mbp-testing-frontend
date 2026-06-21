@@ -7,7 +7,10 @@
       "Bash(npx nuxi *)",
       "Bash(mvn -DskipTests compile)",
       "Bash(mvn -DskipTests clean compile)",
-      "Bash(mvn -q compile -DskipTests)"
+      "Bash(mvn -q compile -DskipTests)",
+      "Bash(node --check src/runners/k6.runner.js)",
+      "Bash(node --check src/services/k6.service.js)",
+      "Bash(node --check src/config/env.js)"
     ]
   }
 }
