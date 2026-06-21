@@ -232,7 +232,8 @@ async function runScenario() {
     }
     if (headers) payload.headers = headers
     if (body !== undefined) payload.body = body
-    result.value = await api.post<K6RunResponse>('/k6-runner/run', payload)
+    const exec = await api.post<{ runResultId: string | null; result: K6RunResponse }>('/k6-runner/run', payload)
+    result.value = exec.result
     running.value = false
   } catch (err: any) {
     if (isConnectionLikelyDropped(err)) {
