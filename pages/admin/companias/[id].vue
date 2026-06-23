@@ -80,6 +80,17 @@ const userDialog = ref(false)
 const userIdInput = ref('')
 const asignando = ref(false)
 
+interface ResetPasswordResult {
+  userId: string
+  email: string
+  generatedPassword: string | null
+  mailDelivered: boolean
+}
+const resetDialog = ref(false)
+const resetResult = ref<ResetPasswordResult | null>(null)
+const resettingUserId = ref<string | null>(null)
+const copiedPassword = ref(false)
+
 const projectDialog = ref(false)
 const projectForm = ref({ name: '', description: '', status: 'ACTIVE' })
 const savingProject = ref(false)
@@ -115,6 +126,29 @@ async function asignarUsuario() {
   } finally {
     asignando.value = false
   }
+}
+
+async function resendPassword(uc: UsuarioCompaniaDto) {
+  if (!confirm(t('admin.companyDetail.resetConfirm', { email: uc.userEmail }))) return
+  resettingUserId.value = uc.userId
+  error.value = null
+  try {
+    resetResult.value = await api.post<ResetPasswordResult>(`/admin/users/${uc.userId}/resend-password`)
+    copiedPassword.value = false
+    resetDialog.value = true
+  } catch (e: any) {
+    error.value = e?.data?.message || t('common.errorSave')
+  } finally {
+    resettingUserId.value = null
+  }
+}
+
+async function copyPassword() {
+  if (!resetResult.value?.generatedPassword) return
+  try {
+    await navigator.clipboard.writeText(resetResult.value.generatedPassword)
+    copiedPassword.value = true
+  } catch { /* algunas vistas SSR / browsers viejos no exponen clipboard */ }
 }
 
 async function quitarUsuario(uc: UsuarioCompaniaDto) {
@@ -295,6 +329,18 @@ const projectHeaders = computed(() => [
                 </v-chip>
               </template>
               <template #item.actions="{ item }">
+                <v-tooltip :text="t('admin.companyDetail.resetTooltip')" location="top">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      size="small"
+                      variant="text"
+                      icon="mdi-lock-reset"
+                      :loading="resettingUserId === item.userId"
+                      @click="resendPassword(item)"
+                    />
+                  </template>
+                </v-tooltip>
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="quitarUsuario(item)" />
               </template>
             </v-data-table>
@@ -456,6 +502,50 @@ const projectHeaders = computed(() => [
           <v-btn color="primary" :loading="asignando" :disabled="!userIdInput" @click="asignarUsuario">
             {{ t('admin.companyDetail.assignUser') }}
           </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="resetDialog" max-width="520">
+      <v-card v-if="resetResult">
+        <v-card-title class="d-flex align-center">
+          <v-icon start :color="resetResult.mailDelivered ? 'success' : 'warning'">
+            {{ resetResult.mailDelivered ? 'mdi-email-check-outline' : 'mdi-email-off-outline' }}
+          </v-icon>
+          {{ t('admin.companyDetail.resetDialog.title') }}
+        </v-card-title>
+        <v-card-text>
+          <template v-if="resetResult.mailDelivered">
+            <p>{{ t('admin.companyDetail.resetDialog.sent', { email: resetResult.email }) }}</p>
+          </template>
+          <template v-else>
+            <v-alert type="warning" variant="tonal" density="compact" class="mb-3">
+              {{ t('admin.companyDetail.resetDialog.mailFailed') }}
+            </v-alert>
+            <div class="text-overline mb-1">{{ t('admin.companyDetail.resetDialog.passwordLabel') }}</div>
+            <div class="d-flex align-center">
+              <code class="flex-grow-1 pa-2" style="background:#0B0F14;border:1px solid #1E293B;border-radius:6px;font-family:'JetBrains Mono',monospace;">
+                {{ resetResult.generatedPassword }}
+              </code>
+              <v-btn
+                class="ml-2"
+                size="small"
+                variant="tonal"
+                :color="copiedPassword ? 'success' : 'primary'"
+                :prepend-icon="copiedPassword ? 'mdi-check' : 'mdi-content-copy'"
+                @click="copyPassword"
+              >
+                {{ copiedPassword ? t('common.copied') : t('common.copy') }}
+              </v-btn>
+            </div>
+            <p class="text-caption text-medium-emphasis mt-3">
+              {{ t('admin.companyDetail.resetDialog.shareHint') }}
+            </p>
+          </template>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" @click="resetDialog = false">{{ t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

@@ -15,22 +15,10 @@ const api = useApi()
 // -------------------------------------------------------------------
 // Tipos
 // -------------------------------------------------------------------
-interface SpecListResponse {
-  count: number
-  specs: string[]
-}
-
-interface CypressTest {
-  title: string[]
-  state: string
-  duration: number | null
-  displayError: string | null
-}
-
 interface CypressRunDetail {
   spec: { name: string; relative: string } | null
   stats: Record<string, number> | null
-  tests: CypressTest[]
+  tests: unknown[]
   error: string | null
   reporter: string | null
 }
@@ -72,13 +60,9 @@ interface CypressSpecsTestRequestGroup {
   status: string
   statusLabel: string
   projectName: string
-  specs: CypressSpecSummary[]
-}
-
-interface CypressSpecsCompanyGroup {
   companiaId: string
   companiaNombre: string
-  testRequests: CypressSpecsTestRequestGroup[]
+  specs: CypressSpecSummary[]
 }
 
 interface TestRunResultSummary {
@@ -104,7 +88,6 @@ interface HealthResponse {
   healthy: boolean
 }
 
-// Estado de un spec dentro de la ejecución batch.
 interface BatchItem {
   specId: string
   name: string
@@ -119,9 +102,9 @@ interface BatchItem {
 }
 
 // -------------------------------------------------------------------
-// Estado
+// Estado: specs por TR
 // -------------------------------------------------------------------
-const groups = ref<CypressSpecsCompanyGroup[]>([])
+const trGroups = ref<CypressSpecsTestRequestGroup[]>([])
 const loadingGroups = ref(false)
 const groupsError = ref<string | null>(null)
 const selected = ref<Set<string>>(new Set())
@@ -133,23 +116,21 @@ const batchProgressIndex = ref(0)
 const healthLoading = ref(false)
 const healthState = ref<'unknown' | 'up' | 'down'>('unknown')
 
+// -------------------------------------------------------------------
+// Estado: historial con filtros + paginación
+// -------------------------------------------------------------------
 const history = ref<TestRunResultSummary[]>([])
+const historyTotal = ref(0)
 const historyLoading = ref(false)
 const historyError = ref<string | null>(null)
-
-// Legacy filesystem
-const showLegacy = ref(false)
-const fsSpecs = ref<string[]>([])
-const fsLoading = ref(false)
-const fsError = ref<string | null>(null)
-const fsSelected = ref<string | null>(null)
-const fsRunning = ref(false)
-const fsResult = ref<CypressRunResponse | null>(null)
-const fsResultRunId = ref<string | null>(null)
-const fsError2 = ref<string | null>(null)
+const historyPage = ref(0) // 0-indexed
+const historyPageSize = ref(20)
+const historyFilterTrId = ref<string | null>(null)
+const historyFilterSpec = ref('')
+const historyFilterResult = ref<'all' | 'success' | 'failed'>('all')
 
 // -------------------------------------------------------------------
-// Selección por TR / compañía
+// Selección por TR
 // -------------------------------------------------------------------
 function isSelected(id: string): boolean {
   return selected.value.has(id)
@@ -179,48 +160,50 @@ function toggleTr(tr: CypressSpecsTestRequestGroup) {
   selected.value = s
 }
 
-function companyAllSelected(comp: CypressSpecsCompanyGroup): boolean {
-  const all = comp.testRequests.flatMap(tr => tr.specs)
-  return all.length > 0 && all.every(s => selected.value.has(s.id))
-}
-
-function companySomeSelected(comp: CypressSpecsCompanyGroup): boolean {
-  const all = comp.testRequests.flatMap(tr => tr.specs)
-  return all.some(s => selected.value.has(s.id)) && !companyAllSelected(comp)
-}
-
-function toggleCompany(comp: CypressSpecsCompanyGroup) {
-  const s = new Set(selected.value)
-  const all = comp.testRequests.flatMap(tr => tr.specs)
-  if (companyAllSelected(comp)) {
-    all.forEach(spec => s.delete(spec.id))
-  } else {
-    all.forEach(spec => { if (spec.active) s.add(spec.id) })
-  }
-  selected.value = s
-}
-
 function clearSelection() {
   selected.value = new Set()
 }
 
 const selectedCount = computed(() => selected.value.size)
 
-// Mapa plano specId → { companiaNombre, testRequestTitle, name } para batch.
 const specIndex = computed(() => {
   const idx = new Map<string, { companiaNombre: string; testRequestTitle: string; name: string }>()
-  for (const comp of groups.value) {
-    for (const tr of comp.testRequests) {
-      for (const spec of tr.specs) {
-        idx.set(spec.id, {
-          companiaNombre: comp.companiaNombre,
-          testRequestTitle: tr.testRequestTitle,
-          name: spec.name
-        })
-      }
+  for (const tr of trGroups.value) {
+    for (const spec of tr.specs) {
+      idx.set(spec.id, {
+        companiaNombre: tr.companiaNombre,
+        testRequestTitle: tr.testRequestTitle,
+        name: spec.name
+      })
     }
   }
   return idx
+})
+
+const trFilterOptions = computed(() => {
+  const opts = trGroups.value.map(tr => ({
+    value: tr.testRequestId,
+    title: `${tr.companiaNombre} · ${tr.testRequestTitle}`
+  }))
+  return [{ value: null, title: t('admin.cypress.historyFilterTrAll') }, ...opts]
+})
+
+const resultFilterOptions = computed(() => [
+  { value: 'all', title: t('admin.cypress.historyFilterResultAll') },
+  { value: 'success', title: t('admin.cypress.historyFilterResultSuccess') },
+  { value: 'failed', title: t('admin.cypress.historyFilterResultFailed') }
+])
+
+// Filtros client-side sobre la página devuelta por el backend.
+const filteredHistory = computed(() => {
+  const q = historyFilterSpec.value.trim().toLowerCase()
+  const result = historyFilterResult.value
+  return history.value.filter(row => {
+    if (q && !(row.spec ?? '').toLowerCase().includes(q)) return false
+    if (result === 'success' && row.success !== true) return false
+    if (result === 'failed' && row.success !== false) return false
+    return true
+  })
 })
 
 // -------------------------------------------------------------------
@@ -230,7 +213,7 @@ async function loadGrouped() {
   loadingGroups.value = true
   groupsError.value = null
   try {
-    groups.value = await api.get<CypressSpecsCompanyGroup[]>('/cypress-specs/grouped')
+    trGroups.value = await api.get<CypressSpecsTestRequestGroup[]>('/cypress-specs/grouped-by-tr')
   } catch (err: any) {
     groupsError.value = err?.data?.message || err?.message || t('admin.cypress.loadError')
   } finally {
@@ -254,13 +237,23 @@ async function loadHistory() {
   historyLoading.value = true
   historyError.value = null
   try {
-    const page = await api.get<Page<TestRunResultSummary>>('/test-runs?page=0&size=20')
+    const params = new URLSearchParams()
+    params.set('page', String(historyPage.value))
+    params.set('size', String(historyPageSize.value))
+    if (historyFilterTrId.value) params.set('testRequestId', historyFilterTrId.value)
+    const page = await api.get<Page<TestRunResultSummary>>(`/test-runs?${params.toString()}`)
     history.value = page.content ?? []
+    historyTotal.value = page.totalElements ?? 0
   } catch (err: any) {
     historyError.value = err?.data?.message || err?.message || t('admin.cypress.historyError')
   } finally {
     historyLoading.value = false
   }
+}
+
+function onHistoryServerFiltersChange() {
+  historyPage.value = 0
+  loadHistory()
 }
 
 // -------------------------------------------------------------------
@@ -320,41 +313,6 @@ function batchSummary() {
 }
 
 // -------------------------------------------------------------------
-// Legacy filesystem
-// -------------------------------------------------------------------
-async function loadFsSpecs() {
-  fsLoading.value = true
-  fsError.value = null
-  try {
-    const data = await api.get<SpecListResponse>('/cypress-runner/specs')
-    fsSpecs.value = data.specs ?? []
-    if (fsSelected.value && !fsSpecs.value.includes(fsSelected.value)) fsSelected.value = null
-  } catch (err: any) {
-    fsError.value = err?.data?.message || err?.message || t('admin.cypress.loadError')
-  } finally {
-    fsLoading.value = false
-  }
-}
-
-async function runFsSelected() {
-  if (!fsSelected.value || fsRunning.value) return
-  fsRunning.value = true
-  fsError2.value = null
-  fsResult.value = null
-  fsResultRunId.value = null
-  try {
-    const data = await api.post<CypressRunExecutionResponse>('/cypress-runner/run', { spec: fsSelected.value })
-    fsResult.value = data.result
-    fsResultRunId.value = data.runResultId
-    loadHistory()
-  } catch (err: any) {
-    fsError2.value = err?.data?.message || err?.message || t('admin.cypress.runError')
-  } finally {
-    fsRunning.value = false
-  }
-}
-
-// -------------------------------------------------------------------
 // Formato
 // -------------------------------------------------------------------
 function fmtDuration(ms: number | null | undefined): string {
@@ -376,10 +334,6 @@ onMounted(() => {
   loadGrouped()
   checkHealth()
   loadHistory()
-})
-
-watch(showLegacy, (v) => {
-  if (v && fsSpecs.value.length === 0) loadFsSpecs()
 })
 </script>
 
@@ -510,11 +464,11 @@ watch(showLegacy, (v) => {
       </v-table>
     </v-card>
 
-    <!-- Specs por compañía -->
+    <!-- Specs por TestRequest -->
     <v-card variant="outlined" rounded="lg" class="mb-4">
       <v-card-title class="d-flex align-center text-body-1 py-3">
-        <v-icon start>mdi-domain</v-icon>
-        {{ t('admin.cypress.specsByCompany') }}
+        <v-icon start>mdi-clipboard-text-outline</v-icon>
+        {{ t('admin.cypress.specsByTestRequest') }}
         <v-spacer />
         <v-btn
           variant="text"
@@ -531,183 +485,83 @@ watch(showLegacy, (v) => {
         <v-alert type="error" variant="tonal" density="compact">{{ groupsError }}</v-alert>
       </div>
 
-      <div v-else-if="loadingGroups && groups.length === 0" class="d-flex justify-center pa-6">
+      <div v-else-if="loadingGroups && trGroups.length === 0" class="d-flex justify-center pa-6">
         <v-progress-circular indeterminate size="32" />
       </div>
 
-      <div v-else-if="groups.length === 0" class="pa-4">
+      <div v-else-if="trGroups.length === 0" class="pa-4">
         <v-alert type="info" variant="tonal" density="compact">
-          {{ t('admin.cypress.specsByCompanyEmpty') }}
+          {{ t('admin.cypress.specsByTestRequestEmpty') }}
         </v-alert>
       </div>
 
       <v-expansion-panels v-else variant="accordion" multiple>
         <v-expansion-panel
-          v-for="comp in groups"
-          :key="comp.companiaId"
+          v-for="tr in trGroups"
+          :key="tr.testRequestId"
         >
           <v-expansion-panel-title>
             <v-checkbox
-              :model-value="companyAllSelected(comp)"
-              :indeterminate="companySomeSelected(comp)"
+              :model-value="trAllSelected(tr)"
+              :indeterminate="trSomeSelected(tr)"
               hide-details
               density="compact"
               class="me-2"
               @click.stop
-              @update:model-value="toggleCompany(comp)"
+              @update:model-value="toggleTr(tr)"
             />
-            <strong>{{ comp.companiaNombre }}</strong>
-            <v-chip class="ms-2" size="x-small" variant="tonal">
-              {{ comp.testRequests.reduce((acc, tr) => acc + tr.specs.length, 0) }}
-            </v-chip>
+            <div class="flex-grow-1 d-flex align-center flex-wrap gap-2">
+              <strong>{{ tr.testRequestTitle }}</strong>
+              <v-chip size="x-small" variant="tonal" color="primary" prepend-icon="mdi-domain">
+                {{ tr.companiaNombre }}
+              </v-chip>
+              <span class="text-caption text-medium-emphasis">{{ tr.projectName }} · {{ tr.statusLabel }}</span>
+              <v-spacer />
+              <v-chip size="x-small" variant="tonal">{{ tr.specs.length }}</v-chip>
+            </div>
           </v-expansion-panel-title>
           <v-expansion-panel-text>
-            <div v-for="tr in comp.testRequests" :key="tr.testRequestId" class="mb-3">
-              <div class="d-flex align-center mb-1">
-                <v-checkbox
-                  :model-value="trAllSelected(tr)"
-                  :indeterminate="trSomeSelected(tr)"
-                  hide-details
-                  density="compact"
-                  class="me-2"
-                  @update:model-value="toggleTr(tr)"
-                />
-                <div>
-                  <div class="text-body-2 font-weight-medium">{{ tr.testRequestTitle }}</div>
-                  <div class="text-caption text-medium-emphasis">
-                    {{ tr.projectName }} · {{ tr.statusLabel }}
-                  </div>
-                </div>
-                <v-spacer />
-                <v-btn
-                  size="small"
-                  variant="text"
-                  prepend-icon="mdi-cog-outline"
-                  :to="`/requests/${tr.testRequestId}/specs`"
-                >
-                  {{ t('admin.cypressSpecs.title') }}
-                </v-btn>
-              </div>
-              <v-list density="compact" class="py-0 ms-9">
-                <v-list-item
-                  v-for="spec in tr.specs"
-                  :key="spec.id"
-                  :disabled="!spec.active"
-                  @click="spec.active && toggleSpec(spec.id)"
-                >
-                  <template #prepend>
-                    <v-checkbox
-                      :model-value="isSelected(spec.id)"
-                      :disabled="!spec.active"
-                      hide-details
-                      density="compact"
-                      @click.stop
-                      @update:model-value="toggleSpec(spec.id)"
-                    />
-                  </template>
-                  <v-list-item-title class="text-body-2 font-monospace">{{ spec.name }}</v-list-item-title>
-                  <v-list-item-subtitle v-if="spec.description" class="text-caption">
-                    {{ spec.description }}
-                  </v-list-item-subtitle>
-                  <template #append>
-                    <v-chip v-if="!spec.active" size="x-small" variant="tonal" color="grey">
-                      inactivo
-                    </v-chip>
-                  </template>
-                </v-list-item>
-              </v-list>
+            <div class="d-flex justify-end mb-2">
+              <v-btn
+                size="small"
+                variant="text"
+                prepend-icon="mdi-cog-outline"
+                :to="`/requests/${tr.testRequestId}/specs`"
+              >
+                {{ t('admin.cypress.manageSpecs') }}
+              </v-btn>
             </div>
+            <v-list density="compact" class="py-0">
+              <v-list-item
+                v-for="spec in tr.specs"
+                :key="spec.id"
+                :disabled="!spec.active"
+                @click="spec.active && toggleSpec(spec.id)"
+              >
+                <template #prepend>
+                  <v-checkbox
+                    :model-value="isSelected(spec.id)"
+                    :disabled="!spec.active"
+                    hide-details
+                    density="compact"
+                    @click.stop
+                    @update:model-value="toggleSpec(spec.id)"
+                  />
+                </template>
+                <v-list-item-title class="text-body-2 font-monospace">{{ spec.name }}</v-list-item-title>
+                <v-list-item-subtitle v-if="spec.description" class="text-caption">
+                  {{ spec.description }}
+                </v-list-item-subtitle>
+                <template #append>
+                  <v-chip v-if="!spec.active" size="x-small" variant="tonal" color="grey">
+                    inactivo
+                  </v-chip>
+                </template>
+              </v-list-item>
+            </v-list>
           </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
-    </v-card>
-
-    <!-- Filesystem legacy (colapsado por default) -->
-    <v-card variant="outlined" rounded="lg" class="mb-4">
-      <v-card-title
-        class="d-flex align-center text-body-1 py-3"
-        style="cursor: pointer"
-        @click="showLegacy = !showLegacy"
-      >
-        <v-icon start>mdi-folder-outline</v-icon>
-        {{ t('admin.cypress.legacyTitle') }}
-        <v-spacer />
-        <v-icon>{{ showLegacy ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-      </v-card-title>
-      <v-divider v-if="showLegacy" />
-      <div v-if="showLegacy" class="pa-3">
-        <v-alert type="info" variant="tonal" density="compact" class="mb-3">
-          {{ t('admin.cypress.legacyHint') }}
-        </v-alert>
-        <v-row>
-          <v-col cols="12" md="5">
-            <div v-if="fsError" class="mb-2">
-              <v-alert type="error" variant="tonal" density="compact">{{ fsError }}</v-alert>
-            </div>
-            <v-list v-else-if="fsSpecs.length > 0" density="compact" max-height="320" class="overflow-y-auto py-0">
-              <v-list-item
-                v-for="s in fsSpecs"
-                :key="s"
-                :active="fsSelected === s"
-                :disabled="fsRunning"
-                @click="fsSelected = s"
-              >
-                <template #prepend>
-                  <v-icon size="18">mdi-file-code-outline</v-icon>
-                </template>
-                <v-list-item-title class="text-body-2 font-monospace">{{ s }}</v-list-item-title>
-              </v-list-item>
-            </v-list>
-            <div v-else class="text-caption text-medium-emphasis">{{ t('admin.cypress.noSpecs') }}</div>
-            <v-btn
-              class="mt-2"
-              color="primary"
-              size="small"
-              :disabled="!fsSelected || fsRunning"
-              :loading="fsRunning"
-              prepend-icon="mdi-play"
-              @click="runFsSelected"
-            >
-              {{ t('admin.cypress.run') }}
-            </v-btn>
-          </v-col>
-          <v-col cols="12" md="7">
-            <div v-if="fsError2" class="mb-2">
-              <v-alert type="error" variant="tonal" density="compact">{{ fsError2 }}</v-alert>
-            </div>
-            <div v-else-if="!fsResult" class="text-caption text-medium-emphasis pa-3 text-center">
-              {{ t('admin.cypress.noResult') }}
-            </div>
-            <div v-else>
-              <div class="d-flex align-center gap-2 mb-2 flex-wrap">
-                <v-chip
-                  :color="fsResult.success ? 'success' : 'error'"
-                  size="small"
-                  variant="tonal"
-                  :prepend-icon="fsResult.success ? 'mdi-check-circle' : 'mdi-close-circle'"
-                >
-                  {{ fsResult.success ? t('admin.cypress.success') : t('admin.cypress.failed') }}
-                </v-chip>
-                <v-chip
-                  v-if="fsResultRunId"
-                  :to="`/test-runs/${fsResultRunId}`"
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                  prepend-icon="mdi-content-save-check-outline"
-                >
-                  {{ t('admin.cypress.saved') }}
-                </v-chip>
-              </div>
-              <div class="text-body-2 font-monospace mb-2 text-truncate">{{ fsResult.spec }}</div>
-              <div class="text-caption">
-                {{ fsResult.totalPassed }}/{{ fsResult.totalTests }} ok ·
-                {{ fmtDuration(fsResult.duration) }}
-              </div>
-            </div>
-          </v-col>
-        </v-row>
-      </div>
     </v-card>
 
     <!-- Historial reciente -->
@@ -727,6 +581,44 @@ watch(showLegacy, (v) => {
       </v-card-title>
       <v-divider />
 
+      <!-- Filtros -->
+      <div class="pa-3 d-flex flex-wrap gap-3 align-end">
+        <v-select
+          v-model="historyFilterTrId"
+          :items="trFilterOptions"
+          item-title="title"
+          item-value="value"
+          :label="t('admin.cypress.historyFilterTr')"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="min-width: 260px"
+          @update:model-value="onHistoryServerFiltersChange"
+        />
+        <v-text-field
+          v-model="historyFilterSpec"
+          :label="t('admin.cypress.historyFilterSpec')"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          prepend-inner-icon="mdi-magnify"
+          style="min-width: 220px"
+        />
+        <v-select
+          v-model="historyFilterResult"
+          :items="resultFilterOptions"
+          item-title="title"
+          item-value="value"
+          :label="t('admin.cypress.historyFilterResult')"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="min-width: 180px"
+        />
+      </div>
+      <v-divider />
+
       <div v-if="historyError" class="pa-4">
         <v-alert type="error" variant="tonal" density="compact">{{ historyError }}</v-alert>
       </div>
@@ -735,7 +627,7 @@ watch(showLegacy, (v) => {
         <v-progress-circular indeterminate size="28" />
       </div>
 
-      <div v-else-if="history.length === 0" class="pa-4">
+      <div v-else-if="filteredHistory.length === 0" class="pa-4">
         <v-alert type="info" variant="tonal" density="compact">
           {{ t('admin.cypress.historyEmpty') }}
         </v-alert>
@@ -755,7 +647,7 @@ watch(showLegacy, (v) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in history" :key="row.id">
+          <tr v-for="row in filteredHistory" :key="row.id">
             <td>
               <v-chip
                 :color="row.success ? 'success' : 'error'"
@@ -787,6 +679,36 @@ watch(showLegacy, (v) => {
           </tr>
         </tbody>
       </v-table>
+
+      <!-- Paginación servidor -->
+      <div v-if="!historyError && historyTotal > 0" class="d-flex align-center justify-end pa-3 gap-3 flex-wrap">
+        <v-select
+          v-model="historyPageSize"
+          :items="[10, 20, 50]"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 90px"
+          @update:model-value="onHistoryServerFiltersChange"
+        />
+        <span class="text-caption text-medium-emphasis">
+          {{ historyPage * historyPageSize + 1 }}–{{ Math.min((historyPage + 1) * historyPageSize, historyTotal) }} / {{ historyTotal }}
+        </span>
+        <v-btn
+          size="small"
+          variant="text"
+          icon="mdi-chevron-left"
+          :disabled="historyPage === 0 || historyLoading"
+          @click="historyPage = historyPage - 1; loadHistory()"
+        />
+        <v-btn
+          size="small"
+          variant="text"
+          icon="mdi-chevron-right"
+          :disabled="(historyPage + 1) * historyPageSize >= historyTotal || historyLoading"
+          @click="historyPage = historyPage + 1; loadHistory()"
+        />
+      </div>
     </v-card>
   </v-container>
 </template>
@@ -801,5 +723,8 @@ watch(showLegacy, (v) => {
 }
 .gap-2 {
   gap: 8px;
+}
+.gap-3 {
+  gap: 12px;
 }
 </style>
